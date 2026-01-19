@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
   return (
@@ -15,8 +16,8 @@ export default function HomeScreen() {
         Who's the most valuable player on your team?
       </Text>
       <View style={styles.buttonContainer}>
-        <PrimaryButton onPress={() => {}}>create vote</PrimaryButton>
-        <SecondaryButton onPress={() => {}}>join vote</SecondaryButton>
+        <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>create vote</PrimaryButton>
+        <SecondaryButton onPress={() => {router.push('/userInput?mode=join')}}>join vote</SecondaryButton>
       </View>
     </ThemedView>
   );

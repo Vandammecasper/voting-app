@@ -1,9 +1,11 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 export const unstable_settings = {
   anchor: '(tabs)', // drawer navigation group
@@ -21,14 +23,60 @@ const AppTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayoutNav() {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.tint} />
+      </View>
+    );
+  }
+
   return (
-    <ThemeProvider value={AppTheme}>
+    <>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen 
+          name="waitingRoom" 
+          options={{ 
+            title: '',
+            headerBackTitle: 'Back',
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="userInput" 
+          options={{ 
+            title: '',
+            headerBackTitle: 'Back',
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
       </Stack>
       <StatusBar style="light" />
-    </ThemeProvider>
+    </>
   );
 }
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <ThemeProvider value={AppTheme}>
+        <RootLayoutNav />
+      </ThemeProvider>
+    </AuthProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+});

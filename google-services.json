@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "579941074520",
+    "firebase_url": "https://mvp-vote-4b489-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "mvp-vote-4b489",
+    "storage_bucket": "mvp-vote-4b489.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579941074520:android:bb2263c04ed2ba6fceec2d",
+        "android_client_info": {
+          "package_name": "com.caspervd.voting_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAq8lnO6IlRo-jJpgV2BkoJfxParIztomY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
