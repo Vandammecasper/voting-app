@@ -56,6 +56,24 @@ function RootLayoutNav() {
             headerShadowVisible: false,
           }} 
         />
+        <Stack.Screen 
+          name="voting" 
+          options={{ 
+            title: '',
+            headerBackVisible: false,
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="votingWaiting" 
+          options={{ 
+            title: '',
+            headerBackVisible: false,
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
       </Stack>
       <StatusBar style="light" />
     </>

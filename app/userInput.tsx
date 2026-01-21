@@ -1,6 +1,6 @@
 import auth from '@react-native-firebase/auth';
 import { useState } from 'react';
-import { Alert, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -242,48 +242,55 @@ export default function UserInputScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {isJoinMode && (
-        <GradientText 
-        text="Join a voting session" 
-        style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginTop: 32 }}
-        />
-      )}
-      {!isJoinMode && (
-      <GradientText 
-          text="What is your name?" 
-          style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}
-        />
-      )}
-      <TextInput 
-        style={styles.input} 
-        placeholder="Enter your name" 
-        placeholderTextColor={Colors.icon}
-        value={name}
-        onChangeText={setName}
-      />
-      {isJoinMode && (
-          <TextInput 
-            style={styles.input} 
-            placeholder="Enter lobby code" 
-            placeholderTextColor={Colors.icon}
-            value={lobbyCode}
-            onChangeText={setLobbyCode}
+      <Pressable style={styles.dismissKeyboard} onPress={Keyboard.dismiss}>
+        {isJoinMode && (
+          <GradientText 
+          text="Join a voting session" 
+          style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginTop: 32 }}
           />
-      )}
-      <View style={styles.buttonContainer}>
-        <PrimaryButton 
-          onPress={isJoinMode ? handleJoin : handleCreate}
-          disabled={isCreating || isJoining || !name.trim() || (isJoinMode && !lobbyCode.trim())}
-        >
-          {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
-        </PrimaryButton>
-      </View>
+        )}
+        {!isJoinMode && (
+        <GradientText 
+            text="What is your name?" 
+            style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}
+          />
+        )}
+        <TextInput 
+          style={styles.input} 
+          placeholder="Enter your name" 
+          placeholderTextColor={Colors.icon}
+          value={name}
+          onChangeText={setName}
+        />
+        {isJoinMode && (
+            <TextInput 
+              style={styles.input} 
+              placeholder="Enter lobby code" 
+              placeholderTextColor={Colors.icon}
+              value={lobbyCode}
+              onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+        )}
+        <View style={styles.buttonContainer}>
+          <PrimaryButton 
+            onPress={isJoinMode ? handleJoin : handleCreate}
+            disabled={isCreating || isJoining || !name.trim() || (isJoinMode && !lobbyCode.trim())}
+          >
+            {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
+          </PrimaryButton>
+        </View>
+      </Pressable>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  dismissKeyboard: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
