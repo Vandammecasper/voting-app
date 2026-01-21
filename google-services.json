@@ -1,7 +1,7 @@
 {
   "project_info": {
     "project_number": "579941074520",
-    "firebase_url": "https://mvp-vote-4b489-default-rtdb.europe-west1.firebasedatabase.app",
+    "firebase_url": "${EXPO_PUBLIC_FIREBASE_DATABASE_URL}",
     "project_id": "mvp-vote-4b489",
     "storage_bucket": "mvp-vote-4b489.firebasestorage.app"
   },

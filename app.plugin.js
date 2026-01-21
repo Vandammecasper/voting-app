@@ -61,28 +61,32 @@ module.exports = function withVoipEntitlements(config) {
       );
       
       // Read environment variables (Expo loads .env files automatically)
-      const apiKey = process.env.FIREBASE_API_KEY;
-      const googleAppId = process.env.FIREBASE_GOOGLE_APP_ID;
-      const projectId = process.env.FIREBASE_PROJECT_ID;
-      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+      const apiKey = process.env.EXPO_PUBLIC_FIREBASE_APIKEY;
+      const googleAppId = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_APP_ID;
+      const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECTID;
+      const storageBucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET;
+      const databaseUrl = process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL;
       const bundleId = process.env.FIREBASE_BUNDLE_ID || config.ios?.bundleIdentifier;
 
       // Function to replace placeholders in plist content
       const replacePlaceholders = (content) => {
         if (apiKey) {
-          content = content.replace(/\$\{FIREBASE_API_KEY\}/g, apiKey);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_APIKEY\}/g, apiKey);
         }
         if (googleAppId) {
-          content = content.replace(/\$\{FIREBASE_GOOGLE_APP_ID\}/g, googleAppId);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_GOOGLE_APP_ID\}/g, googleAppId);
         }
         if (projectId) {
-          content = content.replace(/\$\{FIREBASE_PROJECT_ID\}/g, projectId);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_PROJECTID\}/g, projectId);
         }
         if (storageBucket) {
-          content = content.replace(/\$\{FIREBASE_STORAGE_BUCKET\}/g, storageBucket);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET\}/g, storageBucket);
         }
         if (bundleId) {
           content = content.replace(/\$\{FIREBASE_BUNDLE_ID\}/g, bundleId);
+        }
+        if (databaseUrl) {
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_DATABASE_URL\}/g, databaseUrl);
         }
         return content;
       };
@@ -117,28 +121,32 @@ module.exports = function withVoipEntitlements(config) {
       );
       
       // Read environment variables (Expo loads .env files automatically)
-      const androidApiKey = process.env.FIREBASE_ANDROID_API_KEY;
-      const androidMobileSdkAppId = process.env.FIREBASE_ANDROID_MOBILE_SDK_APP_ID;
+      const apiKey = process.env.EXPO_PUBLIC_FIREBASE_ANDROID_API_KEY;
+      const googleAppId = process.env.EXPO_PUBLIC_FIREBASE_ANDROID_MOBILE_SDK_APP_ID;
+      const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECTID;
+      const storageBucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET;
+      const databaseUrl = process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL;
       const androidPackageName = process.env.FIREBASE_ANDROID_PACKAGE_NAME || config.android?.package;
-      const projectId = process.env.FIREBASE_PROJECT_ID;
-      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
 
       // Function to replace placeholders in JSON content
       const replacePlaceholders = (content) => {
         if (projectId) {
-          content = content.replace(/\$\{FIREBASE_PROJECT_ID\}/g, projectId);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_PROJECTID\}/g, projectId);
         }
         if (storageBucket) {
-          content = content.replace(/\$\{FIREBASE_STORAGE_BUCKET\}/g, storageBucket);
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET\}/g, storageBucket);
         }
-        if (androidMobileSdkAppId) {
-          content = content.replace(/\$\{FIREBASE_ANDROID_MOBILE_SDK_APP_ID\}/g, androidMobileSdkAppId);
+        if (googleAppId) {
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_GOOGLE_APP_ID\}/g, googleAppId);
         }
         if (androidPackageName) {
           content = content.replace(/\$\{FIREBASE_ANDROID_PACKAGE_NAME\}/g, androidPackageName);
         }
-        if (androidApiKey) {
-          content = content.replace(/\$\{FIREBASE_ANDROID_API_KEY\}/g, androidApiKey);
+        if (apiKey) {
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_APIKEY\}/g, apiKey);
+        }
+        if (databaseUrl) {
+          content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_DATABASE_URL\}/g, databaseUrl);
         }
         return content;
       };

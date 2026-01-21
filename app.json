@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
-      "bundleIdentifier": "com.caspervd.voting-app"
+      "bundleIdentifier": "com.caspervandamme.votingapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.caspervd.votingapp",
+      "package": "com.caspervandamme.votingapp",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

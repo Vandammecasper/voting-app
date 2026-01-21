@@ -42,7 +42,7 @@ function RootLayoutNav() {
           name="waitingRoom" 
           options={{ 
             title: '',
-            headerBackTitle: 'Back',
+            headerBackVisible: false,
             headerTransparent: true,
             headerShadowVisible: false,
           }} 
