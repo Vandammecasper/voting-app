@@ -219,12 +219,6 @@ export default function ResultsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* MVP Crown Header */}
-        <View style={styles.crownContainer}>
-          <View style={styles.crownCircle}>
-            <Ionicons name="trophy" size={32} color="#90FF91" />
-          </View>
-        </View>
         
         <GradientText 
           text="MVP" 
