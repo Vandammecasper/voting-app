@@ -69,6 +69,7 @@ async function deleteViaRest(path: string): Promise<boolean> {
   try {
     const currentUser = auth().currentUser;
     if (!currentUser) {
+      console.log(`❌ Delete failed for ${path}: No user`);
       return false;
     }
     
@@ -79,9 +80,15 @@ async function deleteViaRest(path: string): Promise<boolean> {
       method: 'DELETE',
     });
     
+    if (!response.ok) {
+      console.log(`❌ Delete failed for ${path}: ${response.status} ${response.statusText}`);
+    } else {
+      console.log(`✅ Deleted ${path}`);
+    }
+    
     return response.ok;
   } catch (error) {
-    console.error('Delete error:', error);
+    console.error(`❌ Delete error for ${path}:`, error);
     return false;
   }
 }
@@ -140,11 +147,12 @@ function formatDate(timestamp: number): string {
 interface HistoryCardProps {
   item: HistoryItem;
   isCreator: boolean;
+  isDeleting: boolean;
   onPress: () => void;
   onDelete: () => void;
 }
 
-function HistoryCard({ item, isCreator, onPress, onDelete }: HistoryCardProps) {
+function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: HistoryCardProps) {
   const isCompleted = item.lobbyData.status === 'ranking' || item.lobbyData.status === 'completed';
   
   const handleDelete = () => {
@@ -153,13 +161,24 @@ function HistoryCard({ item, isCreator, onPress, onDelete }: HistoryCardProps) {
   
   return (
     <Pressable 
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.card, 
+        pressed && styles.cardPressed,
+        isDeleting && styles.cardDeleting,
+      ]}
       onPress={onPress}
+      disabled={isDeleting}
     >
-      <View style={styles.cardHeader}>
+      {isDeleting && (
+        <View style={styles.deletingOverlay}>
+          <ActivityIndicator size="small" color={Colors.text} />
+          <Text style={styles.deletingText}>Deleting...</Text>
+        </View>
+      )}
+      <View style={[styles.cardHeader, isDeleting && styles.cardContentFaded]}>
         <Text style={styles.cardDate}>{formatDate(item.participatedAt)}</Text>
         <View style={styles.headerRight}>
-          {isCreator && (
+          {isCreator && !isDeleting && (
             <Pressable 
               style={styles.deleteButton}
               onPress={(e) => {
@@ -179,7 +198,7 @@ function HistoryCard({ item, isCreator, onPress, onDelete }: HistoryCardProps) {
         </View>
       </View>
       
-      <View style={styles.cardContent}>
+      <View style={[styles.cardContent, isDeleting && styles.cardContentFaded]}>
         <View style={styles.resultRow}>
           <View style={styles.resultItem}>
             <Text style={styles.resultLabel}>🏆 MVP</Text>
@@ -197,10 +216,10 @@ function HistoryCard({ item, isCreator, onPress, onDelete }: HistoryCardProps) {
         </View>
       </View>
       
-      <View style={styles.cardFooter}>
+      <View style={[styles.cardFooter, isDeleting && styles.cardContentFaded]}>
         <Text style={styles.codeText}>Code: {item.lobbyData.code}</Text>
         <View style={styles.footerRight}>
-          {!isCompleted && (
+          {!isCompleted && !isDeleting && (
             <Text style={styles.rejoinText}>Tap to rejoin</Text>
           )}
           <Ionicons name="chevron-forward" size={20} color={Colors.icon} />
@@ -216,6 +235,7 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUpdatedToast, setShowUpdatedToast] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchHistory = async (isRefresh = false) => {
     if (!user) {
@@ -339,15 +359,21 @@ export default function HistoryScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            try {
-              const lobbyId = item.lobbyId;
-              const code = item.lobbyData.code;
+            const lobbyId = item.lobbyId;
+            const code = item.lobbyData.code;
 
-              // Delete all related data
+            // Set loading state
+            setDeletingId(lobbyId);
+
+            try {
+              // IMPORTANT: Delete participants and votes FIRST
+              // (Firebase rules check lobby creatorId, so lobby must still exist)
+              await deleteViaRest(`participants/${lobbyId}`);
+              await deleteViaRest(`votes/${lobbyId}`);
+              
+              // Then delete lobby and other data
               await Promise.all([
                 deleteViaRest(`lobbies/${lobbyId}`),
-                deleteViaRest(`participants/${lobbyId}`),
-                deleteViaRest(`votes/${lobbyId}`),
                 deleteViaRest(`lobbyCodes/${code}`),
                 user ? deleteViaRest(`userHistory/${user.uid}/${lobbyId}`) : Promise.resolve(true),
               ]);
@@ -357,6 +383,8 @@ export default function HistoryScreen() {
             } catch (error) {
               console.error('Error deleting vote:', error);
               Alert.alert('Error', 'Failed to delete the vote. Please try again.');
+            } finally {
+              setDeletingId(null);
             }
           },
         },
@@ -423,6 +451,7 @@ export default function HistoryScreen() {
                 key={item.lobbyId}
                 item={item}
                 isCreator={user?.uid === item.lobbyData.creatorId}
+                isDeleting={deletingId === item.lobbyId}
                 onPress={() => handleCardPress(item)}
                 onDelete={() => handleDelete(item)}
               />
@@ -510,9 +539,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a3a3a',
     borderRadius: 12,
     overflow: 'hidden',
+    position: 'relative',
   },
   cardPressed: {
     opacity: 0.8,
+  },
+  cardDeleting: {
+    opacity: 0.7,
+  },
+  deletingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deletingText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  cardContentFaded: {
+    opacity: 0.3,
   },
   cardHeader: {
     flexDirection: 'row',
