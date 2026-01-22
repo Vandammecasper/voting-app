@@ -60,6 +60,31 @@ async function readViaRest<T>(path: string): Promise<T | null> {
   }
 }
 
+// Helper to update data using REST API (PATCH)
+async function updateViaRest<T extends Record<string, unknown>>(path: string, data: T): Promise<boolean> {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      return false;
+    }
+    
+    const token = await currentUser.getIdToken();
+    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
 // Hook to poll data using REST API
 function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
   const [data, setData] = useState<T | null>(null);
@@ -127,7 +152,22 @@ export default function VotingWaitingScreen() {
   const votesSubmitted = votesData ? Object.keys(votesData).length : 0;
   const votesRemaining = totalParticipants - votesSubmitted;
 
-  const handleGoToResults = () => {
+  // Auto-navigate to results when status changes
+  useEffect(() => {
+    if (lobbyData?.status === 'results' && voteId) {
+      router.replace({
+        pathname: '/results',
+        params: { voteId },
+      });
+    }
+  }, [lobbyData?.status, voteId]);
+
+  const handleGoToResults = async () => {
+    // Update lobby status to 'results' so all participants navigate
+    if (voteId) {
+      await updateViaRest(`lobbies/${voteId}`, { status: 'results' });
+    }
+    
     router.replace({
       pathname: '/results',
       params: { voteId },

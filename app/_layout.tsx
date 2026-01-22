@@ -1,7 +1,7 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
@@ -67,6 +67,24 @@ function RootLayoutNav() {
         />
         <Stack.Screen 
           name="votingWaiting" 
+          options={{ 
+            title: '',
+            headerBackVisible: false,
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="results" 
+          options={{ 
+            title: '',
+            headerBackVisible: false,
+            headerTransparent: true,
+            headerShadowVisible: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="ranking" 
           options={{ 
             title: '',
             headerBackVisible: false,
