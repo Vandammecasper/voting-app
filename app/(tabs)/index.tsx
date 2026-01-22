@@ -1,9 +1,9 @@
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { router } from 'expo-router';
 
 export default function HomeScreen() {
   return (

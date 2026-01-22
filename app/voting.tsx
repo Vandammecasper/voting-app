@@ -160,7 +160,7 @@ function Dropdown({ value, options, placeholder, onSelect }: DropdownProps) {
 }
 
 export default function VotingScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string }>();
+  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   
   const [mvpName, setMvpName] = useState('');
@@ -221,7 +221,7 @@ export default function VotingScreen() {
         // Navigate to waiting screen since they already voted
         router.replace({
           pathname: '/votingWaiting',
-          params: { voteId },
+          params: { voteId, from },
         });
         return;
       }
@@ -244,7 +244,7 @@ export default function VotingScreen() {
       // Navigate to voting waiting screen
       router.replace({
         pathname: '/votingWaiting',
-        params: { voteId },
+        params: { voteId, from },
       });
     } catch (error) {
       console.error('❌ Error submitting vote:', error);

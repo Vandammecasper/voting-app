@@ -3,6 +3,7 @@
     "name": "Voting app",
     "slug": "voting-app",
     "version": "0.6.0",
+    "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "voting-app",
@@ -25,7 +26,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.caspervandamme.votingapp",
+      "package": "com.caspervd.voting_app",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -61,6 +62,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7f89dac7-96f1-4c84-ada9-af13eb9d6b52"
+      }
     }
   }
 }

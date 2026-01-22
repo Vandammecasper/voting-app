@@ -124,7 +124,7 @@ interface DisplayParticipant {
 }
 
 export default function WaitingRoomScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string }>();
+  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   const [isStarting, setIsStarting] = useState(false);
   const hasNavigated = useRef(false);
@@ -150,10 +150,10 @@ export default function WaitingRoomScreen() {
       hasNavigated.current = true;
       router.replace({
         pathname: '/voting',
-        params: { voteId },
+        params: { voteId, from },
       });
     }
-  }, [lobbyData?.status, voteId]);
+  }, [lobbyData?.status, voteId, from]);
 
   // Handle start voting button
   const handleStartVoting = async () => {

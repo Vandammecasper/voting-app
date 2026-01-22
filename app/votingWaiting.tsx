@@ -123,7 +123,7 @@ function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
 }
 
 export default function VotingWaitingScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string }>();
+  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   
   // Poll lobby data
@@ -157,10 +157,10 @@ export default function VotingWaitingScreen() {
     if (lobbyData?.status === 'results' && voteId) {
       router.replace({
         pathname: '/results',
-        params: { voteId },
+        params: { voteId, from },
       });
     }
-  }, [lobbyData?.status, voteId]);
+  }, [lobbyData?.status, voteId, from]);
 
   const handleGoToResults = async () => {
     // Update lobby status to 'results' so all participants navigate
@@ -170,7 +170,7 @@ export default function VotingWaitingScreen() {
     
     router.replace({
       pathname: '/results',
-      params: { voteId },
+      params: { voteId, from },
     });
   };
 

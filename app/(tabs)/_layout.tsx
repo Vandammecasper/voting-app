@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Drawer } from 'expo-router/drawer';
 import React from 'react';
 
@@ -25,6 +26,14 @@ export default function DrawerLayout() {
           headerTitle: '',
           drawerLabel: 'Home',
           drawerIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="history"
+        options={{
+          headerTitle: '',
+          drawerLabel: 'My Votes',
+          drawerIcon: ({ color }) => <Ionicons size={24} name="time-outline" color={color} />,
         }}
       />
     </Drawer>

@@ -164,7 +164,7 @@ function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
 }
 
 export default function RankingScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string }>();
+  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   
   const [votesData, setVotesData] = useState<VotesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -194,7 +194,11 @@ export default function RankingScreen() {
   }, [votesData]);
 
   const handleFinish = () => {
-    router.replace('/');
+    if (from === 'history') {
+      router.replace('/history');
+    } else {
+      router.replace('/');
+    }
   };
 
   if (isLoading) {

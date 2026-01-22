@@ -111,7 +111,7 @@ function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
 }
 
 export default function ResultsScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string }>();
+  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   
   const [votesData, setVotesData] = useState<VotesData | null>(null);
@@ -142,10 +142,10 @@ export default function ResultsScreen() {
     if (lobbyData?.status === 'ranking' && voteId) {
       router.replace({
         pathname: '/ranking',
-        params: { voteId },
+        params: { voteId, from },
       });
     }
-  }, [lobbyData?.status, voteId]);
+  }, [lobbyData?.status, voteId, from]);
 
   // Convert votes object to sorted array
   const votesArray = useMemo(() => {
@@ -179,7 +179,7 @@ export default function ResultsScreen() {
     
     router.replace({
       pathname: '/ranking',
-      params: { voteId },
+      params: { voteId, from },
     });
   };
 

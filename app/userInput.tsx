@@ -158,6 +158,12 @@ export default function UserInputScreen() {
         isCreator: true,
       });
 
+      // Track participation in user history
+      await writeViaRest(`userHistory/${user.uid}/${lobbyId}`, {
+        lobbyId,
+        joinedAt: Date.now(),
+      });
+
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       router.push({
@@ -223,6 +229,12 @@ export default function UserInputScreen() {
       }
       
       console.log('✅ User added as participant');
+
+      // Track participation in user history
+      await writeViaRest(`userHistory/${user.uid}/${lobbyId}`, {
+        lobbyId,
+        joinedAt: Date.now(),
+      });
 
       await new Promise(resolve => setTimeout(resolve, 2000));
 
