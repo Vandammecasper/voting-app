@@ -1,8 +1,9 @@
 import auth from '@react-native-firebase/auth';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -62,6 +63,28 @@ async function updateViaRest<T>(path: string, data: T): Promise<boolean> {
   }
 }
 
+// Helper to delete data using REST API
+async function deleteViaRest(path: string): Promise<boolean> {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      return false;
+    }
+    
+    const token = await currentUser.getIdToken();
+    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('❌ REST delete error:', error);
+    return false;
+  }
+}
+
 // Hook to poll data using REST API
 function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
   const [data, setData] = useState<T | null>(null);
@@ -105,6 +128,7 @@ interface Participant {
   name: string;
   joinedAt: number;
   isCreator: boolean;
+  nameChangeRequested?: boolean;
 }
 
 interface LobbyData {
@@ -118,16 +142,36 @@ interface LobbyData {
 type ParticipantsData = Record<string, Participant>;
 
 interface DisplayParticipant {
+  id: string;
   name: string;
   isCreator: boolean;
   isOnline: boolean;
+  nameChangeRequested?: boolean;
 }
 
 export default function WaitingRoomScreen() {
   const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   const [isStarting, setIsStarting] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [showNameChangePrompt, setShowNameChangePrompt] = useState(false);
+  const [showNameInputModal, setShowNameInputModal] = useState(false);
+  const [newNameInput, setNewNameInput] = useState('');
   const hasNavigated = useRef(false);
+  const hasShownNameChangePrompt = useRef(false);
+
+  // Copy lobby code to clipboard
+  const handleCopyCode = async () => {
+    if (!lobbyData?.code) return;
+    
+    await Clipboard.setStringAsync(lobbyData.code);
+    setIsCopied(true);
+    
+    // Reset after 2 seconds
+    setTimeout(() => {
+      setIsCopied(false);
+    }, 2000);
+  };
   
   // Poll lobby data using REST API (avoids SDK crashes)
   const { data: lobbyData } = usePolledData<LobbyData>(
@@ -154,6 +198,153 @@ export default function WaitingRoomScreen() {
       });
     }
   }, [lobbyData?.status, voteId, from]);
+
+  // Track if user was previously in the lobby (to detect removal)
+  const wasInLobby = useRef(false);
+
+  // Detect if current user has been removed from the lobby
+  useEffect(() => {
+    // Skip if no user or already navigated
+    if (!user || hasNavigated.current) {
+      return;
+    }
+
+    // Creators can't be removed, skip check for them
+    if (isCreator) {
+      return;
+    }
+
+    // Check if user is currently in the participants list
+    const participantIds = participantsData ? Object.keys(participantsData) : [];
+    const isCurrentlyInLobby = participantIds.includes(user.uid);
+
+    // If user is in lobby, mark them as being in the lobby
+    if (isCurrentlyInLobby) {
+      wasInLobby.current = true;
+      return;
+    }
+
+    // If user was in lobby but is no longer (and we have participant data), they've been removed
+    if (wasInLobby.current && participantsData && !isCurrentlyInLobby) {
+      hasNavigated.current = true;
+      Alert.alert(
+        'Removed from Lobby',
+        'You have been removed from the lobby by the host.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/'),
+          },
+        ]
+      );
+    }
+  }, [participantsData, user, isCreator]);
+
+  // Detect if host has requested a name change for the current user
+  useEffect(() => {
+    if (!user || !participantsData || isCreator || hasShownNameChangePrompt.current) {
+      return;
+    }
+
+    const myData = participantsData[user.uid];
+    if (myData?.nameChangeRequested && !showNameChangePrompt) {
+      hasShownNameChangePrompt.current = true;
+      setShowNameChangePrompt(true);
+      setNewNameInput(myData.name); // Pre-fill with current name
+      
+      Alert.alert(
+        'Name Change Requested',
+        'The host has requested that you change your name.',
+        [
+          {
+            text: 'Exit Lobby',
+            style: 'destructive',
+            onPress: async () => {
+              // Remove self from lobby and go home
+              await deleteViaRest(`participants/${voteId}/${user.uid}`);
+              router.replace('/');
+            },
+          },
+          {
+            text: 'Change Name',
+            onPress: () => {
+              // Show the name input modal (works on both iOS and Android)
+              setShowNameInputModal(true);
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  }, [participantsData, user, isCreator, voteId, showNameChangePrompt]);
+
+  // Handle submitting the new name from the modal
+  const handleSubmitNewName = async () => {
+    if (!user || !voteId) return;
+
+    if (!newNameInput || newNameInput.trim().length === 0) {
+      Alert.alert('Error', 'Please enter a valid name.');
+      return;
+    }
+    
+    // Update name and clear the request flag
+    const success = await updateViaRest(`participants/${voteId}/${user.uid}`, {
+      name: newNameInput.trim(),
+      nameChangeRequested: false,
+    });
+    
+    if (success) {
+      setShowNameInputModal(false);
+      setShowNameChangePrompt(false);
+    } else {
+      Alert.alert('Error', 'Failed to update name. Please try again.');
+    }
+  };
+
+  // Handle canceling the name change modal
+  const handleCancelNameChange = () => {
+    setShowNameInputModal(false);
+    // Reset so they can try again
+    hasShownNameChangePrompt.current = false;
+    setShowNameChangePrompt(false);
+  };
+
+  // Handle tapping on a participant (creator only) - shows action options
+  const handleParticipantPress = (participant: DisplayParticipant) => {
+    if (!isCreator || !voteId || participant.isCreator) return;
+
+    Alert.alert(
+      participant.name,
+      'What would you like to do?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Request Name Change',
+          onPress: async () => {
+            const success = await updateViaRest(`participants/${voteId}/${participant.id}`, {
+              nameChangeRequested: true,
+            });
+            if (!success) {
+              Alert.alert('Error', 'Failed to send name change request. Please try again.');
+            }
+          },
+        },
+        {
+          text: 'Remove from Lobby',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await deleteViaRest(`participants/${voteId}/${participant.id}`);
+            if (!success) {
+              Alert.alert('Error', 'Failed to remove participant. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Handle start voting button
   const handleStartVoting = async () => {
@@ -192,6 +383,7 @@ export default function WaitingRoomScreen() {
       
       // Always add host first
       result.push({
+        id: lobbyData.creatorId,
         name: lobbyData.creatorName || 'Host',
         isCreator: true,
         isOnline: hostInParticipants,
@@ -202,9 +394,11 @@ export default function WaitingRoomScreen() {
         Object.entries(participantsData).forEach(([id, participant]) => {
           if (id !== lobbyData.creatorId && participant && participant.name) {
             result.push({
+              id,
               name: participant.name,
               isCreator: false,
               isOnline: true,
+              nameChangeRequested: participant.nameChangeRequested || false,
             });
           }
         });
@@ -219,8 +413,8 @@ export default function WaitingRoomScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SecondaryButton style={{ marginHorizontal: 56, top: -64 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={() => {}}>
-        {`ID: ${lobbyData?.code || 'Loading...'}`}
+      <SecondaryButton style={{ marginHorizontal: 56, top: -64 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={handleCopyCode}>
+        {isCopied ? 'Copied!' : `ID: ${lobbyData?.code || 'Loading...'}`}
       </SecondaryButton>
       <GradientText 
         text="Waiting for others to join" 
@@ -241,18 +435,36 @@ export default function WaitingRoomScreen() {
           />
           <ScrollView style={styles.participantsScroll} contentContainerStyle={styles.participantsGrid}>
             {participants.length > 0 ? (
-              participants.map((participant, index) => (
-                <Text 
-                  key={index} 
-                  style={[
-                    styles.participantName,
-                    participant.isCreator && styles.creatorName,
-                    !participant.isOnline && styles.offlineName,
-                  ]}
-                >
-                  {participant.name}{participant.isCreator ? ' 👑' : ''}
-                </Text>
-              ))
+              participants.map((participant) => {
+                const canRemove = isCreator && !participant.isCreator;
+                const content = (
+                  <Text 
+                    style={[
+                      styles.participantName,
+                      participant.isCreator && styles.creatorName,
+                      !participant.isOnline && styles.offlineName,
+                      participant.nameChangeRequested && styles.nameChangeRequestedName,
+                    ]}
+                  >
+                    {participant.name}{participant.isCreator ? ' 👑' : ''}
+                  </Text>
+                );
+
+                if (canRemove) {
+                  return (
+                    <TouchableOpacity
+                      key={participant.id}
+                      style={styles.participantWrapper}
+                      onPress={() => handleParticipantPress(participant)}
+                      activeOpacity={0.6}
+                    >
+                      {content}
+                    </TouchableOpacity>
+                  );
+                }
+
+                return <View key={participant.id} style={styles.participantWrapper}>{content}</View>;
+              })
             ) : (
               <Text style={styles.participantName}>Waiting for participants...</Text>
             )}
@@ -276,6 +488,44 @@ export default function WaitingRoomScreen() {
         )}
         <SecondaryButton style={{ marginHorizontal: 24 }} textStyle={{ fontSize: 18 }} onPress={() => router.replace('/')}>exit vote</SecondaryButton>
       </View>
+
+      {/* Name Change Modal - Cross-platform (iOS + Android) */}
+      <Modal
+        visible={showNameInputModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelNameChange}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter New Name</Text>
+            <Text style={styles.modalSubtitle}>Please enter your new name:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newNameInput}
+              onChangeText={setNewNameInput}
+              placeholder="Your name"
+              placeholderTextColor={Colors.icon}
+              autoFocus
+              selectTextOnFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalButtonCancel} 
+                onPress={handleCancelNameChange}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalButtonSubmit} 
+                onPress={handleSubmitNewName}
+              >
+                <Text style={styles.modalButtonSubmitText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -313,11 +563,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
+  participantWrapper: {
+    width: '33%',
+  },
   participantName: {
     color: Colors.text,
     fontSize: 18,
     fontWeight: '500',
-    width: '33%',
     textAlign: 'center',
     paddingVertical: 12,
   },
@@ -326,6 +578,10 @@ const styles = StyleSheet.create({
   },
   offlineName: {
     opacity: 0.4,
+  },
+  nameChangeRequestedName: {
+    opacity: 0.5,
+    fontStyle: 'italic',
   },
   waitingCount: {
     color: Colors.icon,
@@ -336,5 +592,69 @@ const styles = StyleSheet.create({
     marginTop: 32,
     width: '100%',
     gap: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: Colors.icon,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalInput: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Colors.text,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButtonCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#3A3A3A',
+    alignItems: 'center',
+  },
+  modalButtonCancelText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonSubmit: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#6E92FF',
+    alignItems: 'center',
+  },
+  modalButtonSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

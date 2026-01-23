@@ -2,7 +2,7 @@
   "expo": {
     "name": "Voting app",
     "slug": "voting-app",
-    "version": "0.7.1",
+    "version": "0.7.3",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -15,7 +15,8 @@
       "bundleIdentifier": "com.caspervandamme.votingapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "579BFJXWX8"
     },
     "android": {
       "adaptiveIcon": {
