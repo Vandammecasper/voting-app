@@ -9,7 +9,7 @@ import {
     ViewStyle
 } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { GradientText } from './gradient-text';
 
 const GRADIENT_COLORS = ['#6E92FF', '#90FF91'] as const;
@@ -96,10 +96,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '500',
     color: '#1a1a1a',
+    fontFamily: defaultFontFamily,
   },
   secondaryText: {
     fontSize: 24,
-    fontWeight: '500'
+    fontWeight: '500',
+    fontFamily: defaultFontFamily,
   },
 });
 

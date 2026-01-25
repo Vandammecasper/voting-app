@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
@@ -174,35 +174,67 @@ export default function VotingWaitingScreen() {
     });
   };
 
+  const everyoneHasVoted = votesRemaining === 0;
+
   return (
     <ThemedView style={styles.container}>
-      <GradientText 
-        text="Your teammates are voting" 
-        style={styles.title}
-      />
+      {everyoneHasVoted ? (
+        <>
+          <View style={styles.content}>
+            <View style={styles.everyoneVotedContainer}>
+              <Text style={styles.everyoneVotedTitle}>Everyone</Text>
+              <Text style={styles.everyoneVotedTitle}>has voted!</Text>
+              {!isCreator && (
+                <Text style={styles.waitingOnHost}>
+                  Waiting on the host to read the votes...
+                </Text>
+              )}
+            </View>
+          </View>
+          {isCreator && (
+            <View style={[styles.bottomContainer, styles.bottomContainerButtonOnly]}>
+              <PrimaryButton
+                onPress={handleGoToResults}
+                style={styles.resultsButton}
+                textStyle={styles.resultsButtonText}
+              >
+                Go to results
+              </PrimaryButton>
+            </View>
+          )}
+        </>
+      ) : (
+        <>
+          <Text style={styles.title}>Your teammates are voting...</Text>
 
-      <View style={styles.content}>
-        <View style={styles.countContainer}>
-          <Text style={styles.countLabel}>Still need to vote:</Text>
-          <Text style={styles.countNumber}>{votesRemaining}</Text>
-        </View>
-      </View>
+          <View style={styles.content}>
+            <View style={styles.countContainer}>
+              <Text style={styles.alreadyLabel}>already</Text>
+              <GradientText text={String(votesSubmitted)} style={styles.countNumber} />
+              <GradientText
+                text={votesSubmitted === 1 ? 'vote submitted' : 'votes submitted'}
+                style={styles.votesSubmittedLabel}
+              />
+            </View>
+          </View>
 
-      <View style={styles.bottomContainer}>
-        <Text style={styles.hint}>
-          {votesRemaining === 0 ? 'Everyone has voted!' : 'Waiting for others to submit their votes...'}
-        </Text>
+          <View style={styles.bottomContainer}>
+            <Text style={styles.hint}>
+              {`waiting for ${votesRemaining} more ${votesRemaining === 1 ? 'vote' : 'votes'}`}
+            </Text>
 
-        {isCreator && (
-          <PrimaryButton
-            onPress={handleGoToResults}
-            style={styles.resultsButton}
-            textStyle={styles.resultsButtonText}
-          >
-            Go to results
-          </PrimaryButton>
-        )}
-      </View>
+            {isCreator && (
+              <PrimaryButton
+                onPress={handleGoToResults}
+                style={styles.resultsButton}
+                textStyle={styles.resultsButtonText}
+              >
+                Go to results
+              </PrimaryButton>
+            )}
+          </View>
+        </>
+      )}
     </ThemedView>
   );
 }
@@ -222,29 +254,59 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: '#D9D9D9',
+    fontFamily: defaultFontFamily,
   },
   countContainer: {
     alignItems: 'center',
   },
-  countLabel: {
-    color: Colors.text,
-    fontSize: 24,
+  alreadyLabel: {
+    color: Colors.icon,
+    fontSize: 18,
     fontWeight: '500',
-    marginBottom: 16,
+    marginBottom: 12,
+    fontFamily: defaultFontFamily,
   },
   countNumber: {
-    color: Colors.text,
-    fontSize: 64,
+    fontSize: 104,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
+  },
+  votesSubmittedLabel: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 8,
+    fontFamily: defaultFontFamily,
+  },
+  everyoneVotedContainer: {
+    alignItems: 'center',
+  },
+  everyoneVotedTitle: {
+    color: Colors.text,
+    fontSize: 36,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontFamily: defaultFontFamily,
+  },
+  waitingOnHost: {
+    color: Colors.icon,
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 24,
+    fontFamily: defaultFontFamily,
   },
   bottomContainer: {
     paddingBottom: 60,
     gap: 24,
   },
+  bottomContainerButtonOnly: {
+    marginTop: 24,
+  },
   hint: {
     color: Colors.icon,
     fontSize: 14,
     textAlign: 'center',
+    fontFamily: defaultFontFamily,
   },
   resultsButton: {
     marginHorizontal: 0,
@@ -252,6 +314,7 @@ const styles = StyleSheet.create({
   resultsButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
 });
 

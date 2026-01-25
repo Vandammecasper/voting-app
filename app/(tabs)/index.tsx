@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
+import { defaultFontFamily } from '@/constants/theme';
 
 export default function HomeScreen() {
   return (
@@ -36,6 +37,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6E92FF',
     marginTop: 200,
+    fontFamily: defaultFontFamily,
   },
   buttonContainer: {
     marginTop: 32,

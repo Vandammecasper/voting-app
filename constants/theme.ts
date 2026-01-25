@@ -9,9 +9,13 @@ export const Colors = {
   background: '#292929',
   tint: '#fff',
   icon: '#9BA1A6',
+  placeholder: '#6E7378',
   tabIconDefault: '#9BA1A6',
   tabIconSelected: '#fff',
 };
+
+/** Default app font (Noto Sans Devanagari). Loaded in root _layout via useFonts. */
+export const defaultFontFamily = 'NotoSansDevanagari_400Regular';
 
 export const Fonts = Platform.select({
   ios: {

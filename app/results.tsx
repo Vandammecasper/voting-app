@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
@@ -311,6 +311,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.text,
     fontSize: 18,
+    fontFamily: defaultFontFamily,
   },
   // Non-creator waiting view
   waitingTitle: {
@@ -318,6 +319,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginTop: 24,
+    fontFamily: defaultFontFamily,
   },
   waitingSubtitle: {
     color: Colors.icon,
@@ -325,6 +327,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 22,
+    fontFamily: defaultFontFamily,
   },
   // Creator results view
   crownContainer: {
@@ -345,6 +348,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     fontStyle: 'italic',
+    fontFamily: defaultFontFamily,
   },
   pageTitle: {
     color: Colors.text,
@@ -352,12 +356,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 16,
+    fontFamily: defaultFontFamily,
   },
   voteCounter: {
     color: Colors.icon,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
+    fontFamily: defaultFontFamily,
   },
   resultsCard: {
     backgroundColor: '#f5f5f5',
@@ -373,17 +379,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
+    fontFamily: defaultFontFamily,
   },
   resultComment: {
     color: '#3a3a3a',
     fontSize: 14,
     lineHeight: 20,
+    fontFamily: defaultFontFamily,
   },
   noVotesText: {
     color: '#3a3a3a',
     fontSize: 16,
     textAlign: 'center',
     paddingVertical: 20,
+    fontFamily: defaultFontFamily,
   },
   divider: {
     height: 1,
@@ -406,5 +415,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: defaultFontFamily,
   },
 });

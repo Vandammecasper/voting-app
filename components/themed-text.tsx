@@ -1,6 +1,6 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
@@ -14,7 +14,7 @@ export function ThemedText({
   return (
     <Text
       style={[
-        { color: Colors.text },
+        { color: Colors.text, fontFamily: defaultFontFamily },
         type === 'default' ? styles.default : undefined,
         type === 'title' ? styles.title : undefined,
         type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,

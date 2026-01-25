@@ -8,7 +8,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
 
@@ -314,12 +314,14 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.text,
     fontSize: 18,
+    fontFamily: defaultFontFamily,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 24,
+    fontFamily: defaultFontFamily,
   },
   rankingsRow: {
     flexDirection: 'row',
@@ -348,6 +350,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
   rankingList: {
     backgroundColor: '#3a3a3a',
@@ -377,6 +380,7 @@ const styles = StyleSheet.create({
     color: Colors.icon,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
   rankingInfo: {
     flex: 1,
@@ -386,24 +390,29 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: defaultFontFamily,
   },
   rankingNameFirst: {
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
   rankingVotes: {
     color: Colors.icon,
     fontSize: 11,
     marginTop: 1,
+    fontFamily: defaultFontFamily,
   },
   winnerEmoji: {
     fontSize: 16,
     marginLeft: 4,
+    fontFamily: defaultFontFamily,
   },
   noDataText: {
     color: Colors.icon,
     fontSize: 13,
     textAlign: 'center',
     paddingVertical: 16,
+    fontFamily: defaultFontFamily,
   },
   finishButton: {
     marginTop: 32,
@@ -411,5 +420,6 @@ const styles = StyleSheet.create({
   finishButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
 });

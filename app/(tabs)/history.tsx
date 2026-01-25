@@ -7,7 +7,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
@@ -489,6 +489,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: defaultFontFamily,
   },
   scrollView: {
     flex: 1,
@@ -507,12 +508,14 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.icon,
     fontSize: 16,
+    fontFamily: defaultFontFamily,
   },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 32,
+    fontFamily: defaultFontFamily,
   },
   emptyState: {
     alignItems: 'center',
@@ -524,6 +527,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 16,
+    fontFamily: defaultFontFamily,
   },
   emptySubtitle: {
     color: Colors.icon,
@@ -531,6 +535,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+    fontFamily: defaultFontFamily,
   },
   historyList: {
     gap: 16,
@@ -564,6 +569,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: defaultFontFamily,
   },
   cardContentFaded: {
     opacity: 0.3,
@@ -579,6 +585,7 @@ const styles = StyleSheet.create({
   cardDate: {
     color: Colors.icon,
     fontSize: 13,
+    fontFamily: defaultFontFamily,
   },
   headerRight: {
     flexDirection: 'row',
@@ -603,6 +610,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: Colors.text,
+    fontFamily: defaultFontFamily,
   },
   cardContent: {
     paddingHorizontal: 16,
@@ -625,11 +633,13 @@ const styles = StyleSheet.create({
     color: Colors.icon,
     fontSize: 12,
     marginBottom: 4,
+    fontFamily: defaultFontFamily,
   },
   resultName: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: defaultFontFamily,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -643,6 +653,7 @@ const styles = StyleSheet.create({
   codeText: {
     color: Colors.icon,
     fontSize: 12,
+    fontFamily: defaultFontFamily,
   },
   footerRight: {
     flexDirection: 'row',
@@ -653,5 +664,6 @@ const styles = StyleSheet.create({
     color: '#6E92FF',
     fontSize: 12,
     fontWeight: '500',
+    fontFamily: defaultFontFamily,
   },
 });

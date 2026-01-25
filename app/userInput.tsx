@@ -1,11 +1,10 @@
 import auth from '@react-native-firebase/auth';
 import { useState } from 'react';
-import { Alert, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
-import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateLobbyCode } from '@/services/database';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -254,52 +253,63 @@ export default function UserInputScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Pressable style={styles.dismissKeyboard} onPress={Keyboard.dismiss}>
-        {isJoinMode && (
-          <GradientText 
-          text="Join a voting session" 
-          style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginTop: 32 }}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <Pressable style={styles.dismissKeyboard} onPress={Keyboard.dismiss}>
+          {isJoinMode && (
+            <Text
+              style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginTop: 32, color: '#D9D9D9', fontFamily: defaultFontFamily }}
+            >
+              Join a voting session
+            </Text>
+          )}
+          {!isJoinMode && (
+            <Text
+              style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#D9D9D9', fontFamily: defaultFontFamily }}
+            >
+              What is your name?
+            </Text>
+          )}
+          <TextInput 
+            style={styles.input} 
+            placeholder="Enter your name" 
+            placeholderTextColor={Colors.placeholder}
+            value={name}
+            onChangeText={setName}
           />
-        )}
-        {!isJoinMode && (
-        <GradientText 
-            text="What is your name?" 
-            style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}
-          />
-        )}
-        <TextInput 
-          style={styles.input} 
-          placeholder="Enter your name" 
-          placeholderTextColor={Colors.icon}
-          value={name}
-          onChangeText={setName}
-        />
-        {isJoinMode && (
-            <TextInput 
-              style={styles.input} 
-              placeholder="Enter lobby code" 
-              placeholderTextColor={Colors.icon}
-              value={lobbyCode}
-              onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={6}
-            />
-        )}
-        <View style={styles.buttonContainer}>
-          <PrimaryButton 
-            onPress={isJoinMode ? handleJoin : handleCreate}
-            disabled={isCreating || isJoining || !name.trim() || (isJoinMode && !lobbyCode.trim())}
-          >
-            {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
-          </PrimaryButton>
-        </View>
-      </Pressable>
+          {isJoinMode && (
+              <TextInput 
+                style={styles.input} 
+                placeholder="Enter lobby code" 
+                placeholderTextColor={Colors.placeholder}
+                value={lobbyCode}
+                onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+          )}
+          <View style={styles.buttonContainer}>
+            <PrimaryButton 
+              onPress={isJoinMode ? handleJoin : handleCreate}
+              disabled={isCreating || isJoining || !name.trim() || (isJoinMode && !lobbyCode.trim())}
+            >
+              {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
+            </PrimaryButton>
+          </View>
+        </Pressable>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardAvoid: {
     flex: 1,
   },
   dismissKeyboard: {
@@ -331,5 +341,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     color: Colors.text,
     marginTop: 24,
+    fontFamily: defaultFontFamily,
   },
 });

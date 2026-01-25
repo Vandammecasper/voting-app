@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
@@ -127,7 +127,7 @@ function Dropdown({ value, options, placeholder, onSelect }: DropdownProps) {
           <ScrollView 
             style={styles.dropdownScroll}
             nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={Platform.OS === 'android'}
           >
             {options.map((option) => (
               <Pressable
@@ -169,6 +169,7 @@ export default function VotingScreen() {
   const [loserComment, setLoserComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Fetch participants on mount
   useEffect(() => {
@@ -256,11 +257,20 @@ export default function VotingScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView 
+          ref={scrollRef}
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
+        >
         <GradientText 
           text="Your vote" 
           style={styles.title}
@@ -279,12 +289,15 @@ export default function VotingScreen() {
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Why is this person the MVP?"
-          placeholderTextColor={Colors.icon}
+          placeholderTextColor={Colors.placeholder}
           value={mvpComment}
           onChangeText={setMvpComment}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollTo({ y: 180, animated: true }), 150);
+          }}
         />
 
         {/* Loser Section */}
@@ -300,15 +313,19 @@ export default function VotingScreen() {
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Why is this person the loser?"
-          placeholderTextColor={Colors.icon}
+          placeholderTextColor={Colors.placeholder}
           value={loserComment}
           onChangeText={setLoserComment}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+          }}
         />
+      </ScrollView>
 
-        {/* Buttons */}
+        {/* Send vote button - fixed at bottom */}
         <View style={styles.buttonContainer}>
           <PrimaryButton
             onPress={handleSubmit}
@@ -319,7 +336,7 @@ export default function VotingScreen() {
             {isSubmitting ? 'Submitting...' : 'Send vote'}
           </PrimaryButton>
         </View>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -328,35 +345,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 32,
+    fontFamily: defaultFontFamily,
   },
   sectionLabel: {
-    color: Colors.text,
+    color: '#D9D9D9',
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 8,
     marginTop: 16,
+    fontFamily: defaultFontFamily,
   },
   input: {
     width: '100%',
     height: 48,
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
+    borderColor: Colors.icon,
+    borderWidth: 1,
     paddingHorizontal: 16,
     color: Colors.text,
     fontSize: 16,
+    fontFamily: defaultFontFamily,
   },
   textArea: {
     height: 100,
@@ -364,7 +389,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   buttonContainer: {
-    marginTop: 40,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
     gap: 16,
   },
   submitButton: {
@@ -373,6 +400,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: defaultFontFamily,
   },
   // Dropdown styles
   dropdownContainer: {
@@ -384,6 +412,8 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
+    borderColor: Colors.icon,
+    borderWidth: 1,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -397,15 +427,18 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     flex: 1,
+    fontFamily: defaultFontFamily,
   },
   dropdownPlaceholder: {
-    color: Colors.icon,
+    color: Colors.placeholder,
+    fontFamily: defaultFontFamily,
   },
   dropdownList: {
     position: 'absolute',
     top: 48,
     left: 0,
     right: 0,
+    maxHeight: 180,
     backgroundColor: '#3a3a3a',
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
