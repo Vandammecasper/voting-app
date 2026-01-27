@@ -33,28 +33,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const app = getApp();
     const auth = getAuth(app);
-    
-    console.log('🔥 Firebase App initialized:', app.name);
-    console.log('🔐 Setting up auth state listener...');
 
     // Listen for authentication state changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // User is already signed in
-        console.log('✅ User already authenticated');
-        console.log('   └─ User ID:', currentUser.uid);
-        console.log('   └─ Is Anonymous:', currentUser.isAnonymous);
-        console.log('   └─ Created At:', currentUser.metadata.creationTime);
         setUser(currentUser);
         setIsLoading(false);
       } else {
         // No user signed in, sign in anonymously
-        console.log('👤 No user found, signing in anonymously...');
         try {
           const userCredential = await signInAnonymously(auth);
-          console.log('✅ Anonymous sign-in successful!');
-          console.log('   └─ User ID:', userCredential.user.uid);
-          console.log('   └─ Is Anonymous:', userCredential.user.isAnonymous);
           setUser(userCredential.user);
         } catch (error) {
           console.error('❌ Anonymous sign-in failed:', error);
@@ -66,7 +55,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('🔐 Cleaning up auth state listener');
       unsubscribe();
     };
   }, []);

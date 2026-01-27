@@ -97,7 +97,6 @@ export function subscribeToData<T>(
     const unsubscribe = onValue(
       dbRef, 
       (snapshot: DataSnapshot) => {
-        console.log(`📥 Got snapshot for ${path}, exists: ${snapshot.exists()}`);
         if (snapshot.exists()) {
           callback(snapshot.val() as T);
         } else {

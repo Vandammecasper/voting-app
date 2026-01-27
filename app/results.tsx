@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -211,9 +211,20 @@ export default function ResultsScreen() {
     );
   }
 
+  const handleExit = () => {
+    router.replace('/');
+  };
+
   // Creator view - show individual votes
   return (
     <ThemedView style={styles.container}>
+      <TouchableOpacity 
+        style={styles.exitButton}
+        onPress={handleExit}
+        activeOpacity={0.6}
+      >
+        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
+      </TouchableOpacity>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -257,20 +268,19 @@ export default function ResultsScreen() {
 
         {/* Buttons */}
         <View style={styles.buttonContainer}>
-          {hasPreviousVote && (
-            <SecondaryButton
-              onPress={handlePreviousVote}
-              style={styles.secondaryBtn}
-              textStyle={styles.buttonText}
-            >
-              Previous vote
-            </SecondaryButton>
-          )}
+          <SecondaryButton
+            onPress={handlePreviousVote}
+            disabled={!hasPreviousVote}
+            style={styles.secondaryBtn}
+            textStyle={styles.buttonText}
+          >
+            Previous vote
+          </SecondaryButton>
           
           {hasNextVote ? (
             <PrimaryButton
               onPress={handleNextVote}
-              style={[styles.primaryBtn, !hasPreviousVote && styles.fullWidthBtn]}
+              style={styles.primaryBtn}
               textStyle={styles.buttonText}
             >
               Next vote
@@ -278,7 +288,7 @@ export default function ResultsScreen() {
           ) : (
             <PrimaryButton
               onPress={handleGoToRanking}
-              style={[styles.primaryBtn, !hasPreviousVote && styles.fullWidthBtn]}
+              style={styles.primaryBtn}
               textStyle={styles.buttonText}
             >
               Go to ranking
@@ -401,6 +411,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 12,
   },
   secondaryBtn: {
@@ -409,12 +420,16 @@ const styles = StyleSheet.create({
   primaryBtn: {
     flex: 1,
   },
-  fullWidthBtn: {
-    flex: 1,
-  },
   buttonText: {
     fontSize: 14,
     fontWeight: '600',
     fontFamily: defaultFontFamily,
+  },
+  exitButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    zIndex: 1000,
+    padding: 8,
   },
 });

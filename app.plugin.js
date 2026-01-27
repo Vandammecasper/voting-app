@@ -40,7 +40,6 @@ module.exports = function withVoipEntitlements(config) {
               `$1${postInstallFix}\n$2`
             );
             fs.writeFileSync(podfilePath, podfileContent, 'utf8');
-            console.log('Added non-modular header fix to Podfile');
           }
         }
       }
@@ -169,6 +168,211 @@ module.exports = function withVoipEntitlements(config) {
     },
   ]);
 
+  // Add androidx.core dependency for WindowInsetsController (Android 15 compatibility)
+  config = withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const buildGradlePath = path.join(
+        config.modRequest.platformProjectRoot,
+        'app',
+        'build.gradle'
+      );
+
+      if (fs.existsSync(buildGradlePath)) {
+        let buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
+        
+        // Check if androidx.core dependency already exists
+        if (!buildGradle.includes('androidx.core:core:')) {
+          // Find dependencies block and add androidx.core
+          const dependenciesRegex = /(dependencies\s*\{)/;
+          if (dependenciesRegex.test(buildGradle)) {
+            buildGradle = buildGradle.replace(
+              dependenciesRegex,
+              `$1\n    implementation 'androidx.core:core:1.15.0'`
+            );
+            fs.writeFileSync(buildGradlePath, buildGradle, 'utf8');
+          }
+        }
+      }
+      
+      return config;
+    },
+  ]);
+
+  // Fix Android 15 deprecated APIs - replace Window status bar/navigation bar APIs with WindowInsetsController
+  config = withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const packageName = config.android?.package || 'com.caspervd.voting_app';
+      const packagePath = packageName.replace(/\./g, '/');
+      const javaDir = path.join(
+        config.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'java',
+        packagePath
+      );
+
+      // Search for MainActivity files recursively
+      const findMainActivity = (dir) => {
+        if (!fs.existsSync(dir)) return null;
+        
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            const found = findMainActivity(fullPath);
+            if (found) return found;
+          } else if (file.name === 'MainActivity.kt' || file.name === 'MainActivity.java') {
+            return fullPath;
+          }
+        }
+        return null;
+      };
+
+      const activityPath = findMainActivity(javaDir);
+      
+      if (activityPath && fs.existsSync(activityPath)) {
+        let activityContent = fs.readFileSync(activityPath, 'utf8');
+        let modified = false;
+
+        // Check if we already applied the fix
+        if (activityContent.includes('WindowInsetsController') && activityContent.includes('Android 15 compatibility')) {
+          return config;
+        }
+
+        const isKotlin = activityPath.endsWith('.kt');
+        
+        // Define imports to check/add
+        const importsToAdd = [
+          'androidx.core.view.WindowCompat',
+          'androidx.core.view.WindowInsetsControllerCompat',
+          'android.os.Build',
+          'android.view.WindowInsetsController'
+        ];
+
+        // Check which imports are missing and add only those
+        const missingImports = importsToAdd.filter(imp => !activityContent.includes(imp));
+        
+        if (missingImports.length > 0) {
+          const newImports = missingImports.map(imp => 
+            isKotlin ? `import ${imp}` : `import ${imp};`
+          ).join('\n') + '\n';
+
+          if (isKotlin) {
+            // Kotlin: add after package or last import
+            const packageMatch = activityContent.match(/^package\s+[^\n]+\n/);
+            if (packageMatch) {
+              activityContent = activityContent.replace(
+                /(^package\s+[^\n]+\n)/,
+                `$1\n${newImports}`
+              );
+            } else {
+              // Add at the beginning
+              activityContent = newImports + '\n' + activityContent;
+            }
+          } else {
+            // Java: add after package or last import
+            const packageMatch = activityContent.match(/^package\s+[^;]+;\s*\n/);
+            if (packageMatch) {
+              activityContent = activityContent.replace(
+                /(^package\s+[^;]+;\s*\n)/,
+                `$1${newImports}`
+              );
+            } else {
+              // Add at the beginning
+              activityContent = newImports + '\n' + activityContent;
+            }
+          }
+          modified = true;
+        }
+
+        // Add Android 15 compatibility code in onCreate
+        const onCreateRegex = isKotlin
+          ? /(override\s+fun\s+onCreate\s*\([^)]*\)\s*\{)/
+          : /(protected\s+void\s+onCreate\s*\([^)]*\)\s*\{)/;
+
+        if (onCreateRegex.test(activityContent) && !activityContent.includes('Android 15 compatibility')) {
+          const android15Fix = isKotlin
+            ? `
+        // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val window = this.window
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            if (insetsController != null) {
+                // Use WindowInsetsController for status bar and navigation bar
+                insetsController.isAppearanceLightStatusBars = false
+                insetsController.isAppearanceLightNavigationBars = false
+            }
+        }
+`
+            : `
+        // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Window window = getWindow();
+            WindowCompat.setDecorFitsSystemWindows(window, false);
+            WindowInsetsController insetsController = WindowCompat.getInsetsController(window, window.getDecorView());
+            if (insetsController != null) {
+                // Use WindowInsetsController for status bar and navigation bar
+                insetsController.setAppearanceLightStatusBars(false);
+                insetsController.setAppearanceLightNavigationBars(false);
+            }
+        }
+`;
+
+          activityContent = activityContent.replace(
+            onCreateRegex,
+            `$1${android15Fix}`
+          );
+          modified = true;
+        }
+
+        // Replace deprecated LAYOUT_IN_DISPLAY_CUTOUT_MODE constants
+        if (activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES') || 
+            activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT')) {
+          activityContent = activityContent.replace(
+            /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/g,
+            'WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS'
+          );
+          activityContent = activityContent.replace(
+            /LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT/g,
+            'WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS'
+          );
+          modified = true;
+        }
+
+        // Comment out deprecated Window API calls
+        const deprecatedPatterns = [
+          { pattern: /window\.statusBarColor\s*=\s*[^;\n]+/g, comment: '// Removed: window.statusBarColor (deprecated in Android 15)' },
+          { pattern: /window\.navigationBarColor\s*=\s*[^;\n]+/g, comment: '// Removed: window.navigationBarColor (deprecated in Android 15)' },
+          { pattern: /window\.setStatusBarColor\([^)]+\)/g, comment: '// Removed: window.setStatusBarColor() (deprecated in Android 15)' },
+          { pattern: /window\.setNavigationBarColor\([^)]+\)/g, comment: '// Removed: window.setNavigationBarColor() (deprecated in Android 15)' },
+          { pattern: /window\.getStatusBarColor\(\)/g, comment: '// Removed: window.getStatusBarColor() (deprecated in Android 15)' },
+          { pattern: /window\.getNavigationBarColor\(\)/g, comment: '// Removed: window.getNavigationBarColor() (deprecated in Android 15)' },
+          { pattern: /getWindow\(\)\.statusBarColor\s*=\s*[^;\n]+/g, comment: '// Removed: getWindow().statusBarColor (deprecated in Android 15)' },
+          { pattern: /getWindow\(\)\.navigationBarColor\s*=\s*[^;\n]+/g, comment: '// Removed: getWindow().navigationBarColor (deprecated in Android 15)' },
+          { pattern: /getWindow\(\)\.setStatusBarColor\([^)]+\)/g, comment: '// Removed: getWindow().setStatusBarColor() (deprecated in Android 15)' },
+          { pattern: /getWindow\(\)\.setNavigationBarColor\([^)]+\)/g, comment: '// Removed: getWindow().setNavigationBarColor() (deprecated in Android 15)' },
+        ];
+
+        for (const { pattern, comment } of deprecatedPatterns) {
+          if (pattern.test(activityContent)) {
+            activityContent = activityContent.replace(pattern, comment);
+            modified = true;
+          }
+        }
+
+        if (modified) {
+          fs.writeFileSync(activityPath, activityContent, 'utf8');
+        }
+      }
+
+      return config;
+    },
+  ]);
+
   // Add build script to generate Hermes dSYM using withDangerousMod
   config = withDangerousMod(config, [
     'ios',
@@ -188,7 +392,6 @@ module.exports = function withVoipEntitlements(config) {
       
       // Check if the script already exists
       if (projectContent.includes('Generate Hermes dSYM') || projectContent.includes('hermes.framework.dSYM')) {
-        console.log('Hermes dSYM script already exists');
         return config;
       }
 
@@ -262,7 +465,6 @@ module.exports = function withVoipEntitlements(config) {
       }
 
       fs.writeFileSync(projectPath, projectContent, 'utf8');
-      console.log('Added Hermes dSYM generation script to Xcode project');
       
       return config;
     },

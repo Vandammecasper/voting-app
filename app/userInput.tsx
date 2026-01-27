@@ -116,7 +116,6 @@ export default function UserInputScreen() {
   const handleCreate = async () => {
     
     if (!name.trim()) {
-      console.log('❌ Name empty');
       return;
     }
     
@@ -140,7 +139,6 @@ export default function UserInputScreen() {
         code,
       };
 
-      console.log('📤 Creating lobby via REST...');
       const lobbyId = await pushViaRest('lobbies', lobbyData);
       
       if (!lobbyId) {
@@ -169,7 +167,6 @@ export default function UserInputScreen() {
         pathname: '/waitingRoom',
         params: { voteId: lobbyId },
       });
-      console.log('✅ Navigation initiated');
     } catch (error) {
       console.error('❌ Error creating vote:', error);
       Alert.alert('Error', 'Failed to create lobby. Please try again.');
@@ -181,7 +178,6 @@ export default function UserInputScreen() {
   const handleJoin = async () => {
     
     if (!name.trim() || !lobbyCode.trim()) {
-      console.log('❌ Name or lobby code empty');
       return;
     }
     
@@ -227,8 +223,6 @@ export default function UserInputScreen() {
         return;
       }
       
-      console.log('✅ User added as participant');
-
       // Track participation in user history
       await writeViaRest(`userHistory/${user.uid}/${lobbyId}`, {
         lobbyId,
@@ -238,7 +232,6 @@ export default function UserInputScreen() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Navigate to the waiting room with the lobby ID
-      console.log('🚀 Navigating to waiting room with voteId:', lobbyId);
       router.push({
         pathname: '/waitingRoom',
         params: { voteId: lobbyId },

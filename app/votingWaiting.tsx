@@ -1,13 +1,14 @@
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
 
@@ -176,8 +177,19 @@ export default function VotingWaitingScreen() {
 
   const everyoneHasVoted = votesRemaining === 0;
 
+  const handleExit = () => {
+    router.replace('/');
+  };
+
   return (
     <ThemedView style={styles.container}>
+      <TouchableOpacity 
+        style={styles.exitButton}
+        onPress={handleExit}
+        activeOpacity={0.6}
+      >
+        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
+      </TouchableOpacity>
       {everyoneHasVoted ? (
         <>
           <View style={styles.content}>
@@ -315,6 +327,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
+  },
+  exitButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    zIndex: 1000,
+    padding: 8,
   },
 });
 

@@ -69,7 +69,6 @@ async function deleteViaRest(path: string): Promise<boolean> {
   try {
     const currentUser = auth().currentUser;
     if (!currentUser) {
-      console.log(`❌ Delete failed for ${path}: No user`);
       return false;
     }
     
@@ -81,9 +80,7 @@ async function deleteViaRest(path: string): Promise<boolean> {
     });
     
     if (!response.ok) {
-      console.log(`❌ Delete failed for ${path}: ${response.status} ${response.statusText}`);
-    } else {
-      console.log(`✅ Deleted ${path}`);
+      // Delete failed
     }
     
     return response.ok;

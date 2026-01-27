@@ -45,55 +45,37 @@ function RootLayoutNav() {
         <Stack.Screen 
           name="waitingRoom" 
           options={{ 
-            title: '',
-            headerBackVisible: false,
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
         <Stack.Screen 
           name="userInput" 
           options={{ 
-            title: '',
-            headerBackTitle: 'Back',
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
         <Stack.Screen 
           name="voting" 
           options={{ 
-            title: '',
-            headerBackVisible: false,
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
         <Stack.Screen 
           name="votingWaiting" 
           options={{ 
-            title: '',
-            headerBackVisible: false,
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
         <Stack.Screen 
           name="results" 
           options={{ 
-            title: '',
-            headerBackVisible: false,
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
         <Stack.Screen 
           name="ranking" 
           options={{ 
-            title: '',
-            headerBackVisible: false,
-            headerTransparent: true,
-            headerShadowVisible: false,
+            headerShown: false,
           }} 
         />
       </Stack>

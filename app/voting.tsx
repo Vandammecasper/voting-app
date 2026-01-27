@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
@@ -255,8 +255,19 @@ export default function VotingScreen() {
     }
   };
 
+  const handleExit = () => {
+    router.replace('/');
+  };
+
   return (
     <ThemedView style={styles.container}>
+      <TouchableOpacity 
+        style={styles.exitButton}
+        onPress={handleExit}
+        activeOpacity={0.6}
+      >
+        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -471,5 +482,12 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: '#6E92FF',
     fontWeight: '500',
+  },
+  exitButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    zIndex: 1000,
+    padding: 8,
   },
 });
