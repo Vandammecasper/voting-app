@@ -21,6 +21,15 @@ interface Participant {
 
 type ParticipantsData = Record<string, Participant>;
 
+interface LobbyData {
+  creatorId: string;
+  creatorName: string;
+  createdAt: number;
+  status: string;
+  code: string;
+  voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
+}
+
 // Helper to read data using REST API
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
@@ -169,11 +178,12 @@ export default function VotingScreen() {
   const [loserComment, setLoserComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
+  const [voteType, setVoteType] = useState<'mvpOnly' | 'mvpAndLoser'>('mvpAndLoser');
   const scrollRef = useRef<ScrollView>(null);
 
-  // Fetch participants on mount
+  // Fetch participants and lobby data on mount
   useEffect(() => {
-    async function fetchParticipants() {
+    async function fetchData() {
       if (!voteId) return;
       
       const participants = await readViaRest<ParticipantsData>(`participants/${voteId}`);
@@ -181,9 +191,15 @@ export default function VotingScreen() {
         const names = Object.values(participants).map(p => p.name);
         setParticipantNames(names);
       }
+      
+      // Fetch lobby data to get vote type
+      const lobbyData = await readViaRest<LobbyData>(`lobbies/${voteId}`);
+      if (lobbyData?.voteType) {
+        setVoteType(lobbyData.voteType);
+      }
     }
     
-    fetchParticipants();
+    fetchData();
   }, [voteId]);
 
   const handleSubmit = async () => {
@@ -197,14 +213,17 @@ export default function VotingScreen() {
       return;
     }
     
-    if (!loserName) {
-      Alert.alert('Error', 'Please select the loser');
-      return;
-    }
-    
-    if (!loserComment.trim()) {
-      Alert.alert('Error', 'Please add a comment for the loser');
-      return;
+    // Only require loser fields if vote type is mvpAndLoser
+    if (voteType === 'mvpAndLoser') {
+      if (!loserName) {
+        Alert.alert('Error', 'Please select the loser');
+        return;
+      }
+      
+      if (!loserComment.trim()) {
+        Alert.alert('Error', 'Please add a comment for the loser');
+        return;
+      }
     }
     
     if (!user || !voteId) {
@@ -227,13 +246,23 @@ export default function VotingScreen() {
         return;
       }
 
-      const voteData = {
+      const voteData: {
+        mvpName: string;
+        mvpComment: string;
+        loserName?: string;
+        loserComment?: string;
+        submittedAt: number;
+      } = {
         mvpName: mvpName.trim(),
         mvpComment: mvpComment.trim(),
-        loserName: loserName.trim(),
-        loserComment: loserComment.trim(),
         submittedAt: Date.now(),
       };
+      
+      // Only include loser fields if vote type is mvpAndLoser
+      if (voteType === 'mvpAndLoser') {
+        voteData.loserName = loserName.trim();
+        voteData.loserComment = loserComment.trim();
+      }
 
       const success = await writeViaRest(`votes/${voteId}/${user.uid}`, voteData);
       
@@ -311,36 +340,45 @@ export default function VotingScreen() {
           }}
         />
 
-        {/* Loser Section */}
-        <Text style={styles.sectionLabel}>Your loser of the match</Text>
-        <Dropdown
-          value={loserName}
-          options={participantNames}
-          placeholder="Select the match loser"
-          onSelect={setLoserName}
-        />
+        {/* Loser Section - only show if vote type is mvpAndLoser */}
+        {voteType === 'mvpAndLoser' && (
+          <>
+            <Text style={styles.sectionLabel}>Your loser of the match</Text>
+            <Dropdown
+              value={loserName}
+              options={participantNames}
+              placeholder="Select the match loser"
+              onSelect={setLoserName}
+            />
 
-        <Text style={styles.sectionLabel}>Loser comment</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Why is this person the loser?"
-          placeholderTextColor={Colors.placeholder}
-          value={loserComment}
-          onChangeText={setLoserComment}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
-          }}
-        />
+            <Text style={styles.sectionLabel}>Loser comment</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Why is this person the loser?"
+              placeholderTextColor={Colors.placeholder}
+              value={loserComment}
+              onChangeText={setLoserComment}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              onFocus={() => {
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+              }}
+            />
+          </>
+        )}
       </ScrollView>
 
         {/* Send vote button - fixed at bottom */}
         <View style={styles.buttonContainer}>
           <PrimaryButton
             onPress={handleSubmit}
-            disabled={isSubmitting || !mvpName || !mvpComment.trim() || !loserName || !loserComment.trim()}
+            disabled={
+              isSubmitting || 
+              !mvpName || 
+              !mvpComment.trim() || 
+              (voteType === 'mvpAndLoser' && (!loserName || !loserComment.trim()))
+            }
             style={styles.submitButton}
             textStyle={styles.submitButtonText}
           >

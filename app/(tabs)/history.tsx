@@ -18,11 +18,12 @@ interface LobbyData {
   createdAt: number;
   status: string;
   code: string;
+  voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
 }
 
 interface VoteData {
   mvpName: string;
-  loserName: string;
+  loserName?: string;
   submittedAt: number;
 }
 
@@ -38,6 +39,7 @@ interface HistoryItem {
   mvpWinner: string | null;
   loserWinner: string | null;
   participatedAt: number;
+  voteType?: 'mvpOnly' | 'mvpAndLoser';
 }
 
 // Helper to read data using REST API
@@ -97,7 +99,10 @@ function calculateWinners(votes: Record<string, VoteData>): { mvp: string | null
 
   Object.values(votes).forEach((vote) => {
     mvpCounts[vote.mvpName] = (mvpCounts[vote.mvpName] || 0) + 1;
-    loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
+    // Only count loser votes if they exist
+    if (vote.loserName) {
+      loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
+    }
   });
 
   let mvpWinner: string | null = null;
@@ -197,19 +202,23 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
       
       <View style={[styles.cardContent, isDeleting && styles.cardContentFaded]}>
         <View style={styles.resultRow}>
-          <View style={styles.resultItem}>
+          <View style={[styles.resultItem, item.voteType === 'mvpOnly' && styles.resultItemFull]}>
             <Text style={styles.resultLabel}>🏆 MVP</Text>
             <Text style={styles.resultName} numberOfLines={1}>
               {item.mvpWinner || '—'}
             </Text>
           </View>
-          <View style={styles.resultDivider} />
-          <View style={styles.resultItem}>
-            <Text style={styles.resultLabel}>🤡 Loser</Text>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {item.loserWinner || '—'}
-            </Text>
-          </View>
+          {item.voteType === 'mvpAndLoser' && (
+            <>
+              <View style={styles.resultDivider} />
+              <View style={styles.resultItem}>
+                <Text style={styles.resultLabel}>🤡 Loser</Text>
+                <Text style={styles.resultName} numberOfLines={1}>
+                  {item.loserWinner || '—'}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
       
@@ -276,6 +285,7 @@ export default function HistoryScreen() {
             mvpWinner: winners.mvp,
             loserWinner: winners.loser,
             participatedAt: entry.joinedAt,
+            voteType: lobbyData.voteType || 'mvpAndLoser', // Default to mvpAndLoser for backward compatibility
           });
         }
       }
@@ -618,6 +628,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resultItem: {
+    flex: 1,
+  },
+  resultItemFull: {
     flex: 1,
   },
   resultDivider: {

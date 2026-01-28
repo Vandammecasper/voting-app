@@ -29,8 +29,8 @@ interface LobbyData {
 interface VoteData {
   mvpName: string;
   mvpComment: string;
-  loserName: string;
-  loserComment: string;
+  loserName?: string;
+  loserComment?: string;
   submittedAt: number;
 }
 

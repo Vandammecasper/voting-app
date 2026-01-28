@@ -23,8 +23,8 @@ interface LobbyData {
 interface VoteData {
   mvpName: string;
   mvpComment: string;
-  loserName: string;
-  loserComment: string;
+  loserName?: string;
+  loserComment?: string;
   submittedAt: number;
 }
 
@@ -252,13 +252,16 @@ export default function ResultsScreen() {
               <Text style={styles.resultComment}>{currentVote.mvpComment}</Text>
             </View>
 
-            <View style={styles.divider} />
-
-            {/* Loser Section */}
-            <View style={styles.resultSection}>
-              <Text style={styles.resultLabel}>Loser: {currentVote.loserName.toUpperCase()}</Text>
-              <Text style={styles.resultComment}>{currentVote.loserComment}</Text>
-            </View>
+            {/* Loser Section - only show if loser data exists */}
+            {currentVote.loserName && currentVote.loserComment && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.resultSection}>
+                  <Text style={styles.resultLabel}>Loser: {currentVote.loserName.toUpperCase()}</Text>
+                  <Text style={styles.resultComment}>{currentVote.loserComment}</Text>
+                </View>
+              </>
+            )}
           </View>
         ) : (
           <View style={styles.resultsCard}>

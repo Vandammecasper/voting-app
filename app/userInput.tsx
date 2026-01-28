@@ -111,6 +111,7 @@ export default function UserInputScreen() {
   const [lobbyCode, setLobbyCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [voteType, setVoteType] = useState<'mvpAndLoser' | 'mvpOnly'>('mvpAndLoser');
   const { user } = useAuth();
 
   const handleCreate = async () => {
@@ -137,6 +138,7 @@ export default function UserInputScreen() {
         createdAt: Date.now(),
         status: 'waiting',
         code,
+        voteType, // 'mvpOnly' or 'mvpAndLoser'
       };
 
       const lobbyId = await pushViaRest('lobbies', lobbyData);
@@ -273,6 +275,29 @@ export default function UserInputScreen() {
             value={name}
             onChangeText={setName}
           />
+          {!isJoinMode && (
+            <View style={styles.toggleContainer}>
+              <Text style={styles.toggleLabel}>Vote type</Text>
+              <View style={styles.toggleRow}>
+                <Pressable
+                  style={[styles.toggleOption, voteType === 'mvpAndLoser' && styles.toggleOptionActive]}
+                  onPress={() => setVoteType('mvpAndLoser')}
+                >
+                  <Text style={[styles.toggleText, voteType === 'mvpAndLoser' && styles.toggleTextActive]}>
+                    MVP + Loser
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.toggleOption, voteType === 'mvpOnly' && styles.toggleOptionActive]}
+                  onPress={() => setVoteType('mvpOnly')}
+                >
+                  <Text style={[styles.toggleText, voteType === 'mvpOnly' && styles.toggleTextActive]}>
+                    MVP only
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
           {isJoinMode && (
               <TextInput 
                 style={styles.input} 
@@ -335,5 +360,44 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginTop: 24,
     fontFamily: defaultFontFamily,
+  },
+  toggleContainer: {
+    width: '100%',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  toggleLabel: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 12,
+    fontFamily: defaultFontFamily,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  toggleOption: {
+    flex: 1,
+    height: 44,
+    borderColor: Colors.icon,
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toggleOptionActive: {
+    borderColor: '#6E92FF',
+    backgroundColor: 'rgba(110, 146, 255, 0.1)',
+  },
+  toggleText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontFamily: defaultFontFamily,
+  },
+  toggleTextActive: {
+    color: '#6E92FF',
+    fontWeight: '600',
   },
 });

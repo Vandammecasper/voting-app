@@ -596,7 +596,7 @@ export default function WaitingRoomScreen() {
               {isStarting ? 'Starting...' : 'start voting'}
             </PrimaryButton>
           )}
-          <SecondaryButton style={{ marginHorizontal: 24 }} textStyle={{ fontSize: 18 }} onPress={() => router.replace('/')}>exit vote</SecondaryButton>
+          <SecondaryButton style={{ marginHorizontal: 24 }} textStyle={{ fontSize: 18 }} onPress={() => router.replace('/(tabs)')}>exit vote</SecondaryButton>
         </View>
       </View>
 

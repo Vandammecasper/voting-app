@@ -20,8 +20,8 @@ interface LobbyData {
 interface VoteData {
   mvpName: string;
   mvpComment: string;
-  loserName: string;
-  loserComment: string;
+  loserName?: string;
+  loserComment?: string;
   submittedAt: number;
 }
 
@@ -67,8 +67,10 @@ function calculateRankings(votes: VotesData): {
   Object.values(votes).forEach((vote) => {
     // Count MVP votes
     mvpCounts[vote.mvpName] = (mvpCounts[vote.mvpName] || 0) + 1;
-    // Count Loser votes
-    loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
+    // Count Loser votes (only if loser exists)
+    if (vote.loserName) {
+      loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
+    }
   });
 
   // Convert to sorted arrays
@@ -226,7 +228,7 @@ export default function RankingScreen() {
         {/* Side by Side Rankings */}
         <View style={styles.rankingsRow}>
           {/* MVP Rankings */}
-          <View style={styles.rankingColumn}>
+          <View style={[styles.rankingColumn, rankings.loserRanking.length === 0 && styles.rankingColumnFull]}>
             <View style={styles.sectionHeader}>
               <LinearGradient
                 colors={['#90FF91', '#6E92FF']}
@@ -255,30 +257,28 @@ export default function RankingScreen() {
             </View>
           </View>
 
-          {/* Loser Rankings */}
-          <View style={styles.rankingColumn}>
-            <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, styles.loserIconBg]}>
-              <Ionicons name="sad" size={16} color="#fff" />
-            </View>
-              <Text style={styles.sectionTitle}>Loser</Text>
-            </View>
-            
-            <View style={styles.rankingList}>
-              {rankings.loserRanking.length > 0 ? (
-                rankings.loserRanking.map((entry, index) => (
+          {/* Loser Rankings - only show if there are loser votes */}
+          {rankings.loserRanking.length > 0 && (
+            <View style={styles.rankingColumn}>
+              <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBg, styles.loserIconBg]}>
+                <Ionicons name="sad" size={16} color="#fff" />
+              </View>
+                <Text style={styles.sectionTitle}>Loser</Text>
+              </View>
+              
+              <View style={styles.rankingList}>
+                {rankings.loserRanking.map((entry, index) => (
                   <RankingItem 
                     key={entry.name} 
                     entry={entry} 
                     position={index}
                     type="loser"
                   />
-                ))
-              ) : (
-                <Text style={styles.noDataText}>No votes</Text>
-              )}
+                ))}
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* Finish Button */}
@@ -329,6 +329,10 @@ const styles = StyleSheet.create({
   },
   rankingColumn: {
     flex: 1,
+  },
+  rankingColumnFull: {
+    flex: 1,
+    maxWidth: '100%',
   },
   sectionHeader: {
     flexDirection: 'row',

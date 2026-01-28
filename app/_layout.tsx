@@ -1,8 +1,8 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { NotoSansDevanagari_400Regular } from '@expo-google-fonts/noto-sans-devanagari/400Regular';
 import { useFonts } from '@expo-google-fonts/noto-sans-devanagari/useFonts';
-import * as SplashScreen from 'expo-splash-screen';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -41,6 +41,14 @@ function RootLayoutNav() {
   return (
     <>
       <Stack>
+        <Stack.Screen 
+          name="onboarding" 
+          options={{ 
+            headerShown: false,
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }} 
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen 
           name="waitingRoom" 

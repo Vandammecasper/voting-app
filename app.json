@@ -2,7 +2,7 @@
   "expo": {
     "name": "Voting app",
     "slug": "voting-app",
-    "version": "0.7.6",
+    "version": "0.8.0",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -37,6 +37,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-av",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "./app.plugin.js",
