@@ -14,6 +14,7 @@ export default function WelcomeScreen() {
   const cardTranslateY = useSharedValue(0);
   const cardHeight = useSharedValue(380);
   const overlayHeight = useSharedValue(120);
+  const ONBOARDINGIMAGE = false;
 
   useEffect(() => {
     const imageSource = Image.resolveAssetSource(require('@/assets/images/mvpMockup.png'));
@@ -67,19 +68,39 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={require('@/assets/images/mvpMockup.png')}
-        style={[
-          styles.backgroundImage,
-          {
-            width: screenWidth,
-            height: imageHeight || screenWidth * 1.5,
-          },
-        ]}
-        resizeMode="cover"
-      >
-        <Animated.View style={[styles.overlay, overlayAnimatedStyle]} pointerEvents="none" />
-      </ImageBackground>
+      {ONBOARDINGIMAGE ? (
+        <ImageBackground
+          source={require('@/assets/images/mvpMockup.png')}
+          style={[
+            styles.backgroundImage,
+            {
+              width: screenWidth,
+              height: imageHeight || screenWidth * 1.5,
+            },
+          ]}
+          resizeMode="cover"
+        >
+          <Animated.View style={[styles.overlay, overlayAnimatedStyle]} pointerEvents="none" />
+        </ImageBackground>
+      ) : (
+        <View
+          style={[
+            styles.backgroundImage,
+            styles.logoContainer,
+            {
+              width: screenWidth,
+              height: imageHeight || screenWidth * 1.5,
+            },
+          ]}
+        >
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Animated.View style={[styles.overlay, overlayAnimatedStyle]} pointerEvents="none" />
+        </View>
+      )}
       <View style={styles.content}>
         <Animated.View style={[styles.card, cardAnimatedStyle]}>
           <View style={styles.cardContent}>
@@ -93,7 +114,7 @@ export default function WelcomeScreen() {
             </View>
             
             <Text style={styles.description}>
-              Pick the MVP and the loser of your team{'\n'}Live and in real time!
+              Pick the MVP and the loser{'\n'}of your team!
             </Text>
 
             <View style={styles.buttonContainer}>
@@ -119,6 +140,15 @@ const styles = StyleSheet.create({
   },
   backgroundImage: {
     alignSelf: 'flex-start',
+  },
+  logoContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  logo: {
+    width: 280,
+    height: 280,
   },
   overlay: {
     position: 'absolute',
