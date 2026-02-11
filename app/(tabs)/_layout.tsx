@@ -36,6 +36,21 @@ export default function DrawerLayout() {
           drawerIcon: ({ color }) => <Ionicons size={24} name="time-outline" color={color} />,
         }}
       />
+      <Drawer.Screen
+        name="settings"
+        options={({ navigation }) => {
+          const state = navigation.getState();
+          const settingsRoute = state?.routes?.find((r) => r.name === 'settings');
+          const nestedState = settingsRoute?.state as { routes: { name: string }[]; index: number } | undefined;
+          const isNestedScreen = nestedState?.routes?.[nestedState.index]?.name !== 'index';
+          return {
+            headerTitle: '',
+            drawerLabel: 'Settings',
+            drawerIcon: ({ color }) => <Ionicons size={24} name="settings-outline" color={color} />,
+            headerLeft: isNestedScreen ? () => null : undefined,
+          };
+        }}
+      />
     </Drawer>
   );
 }

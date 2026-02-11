@@ -1,23 +1,29 @@
-import { useEffect, useState, useCallback } from 'react';
-import { 
-  writeData, 
-  readData, 
-  pushData, 
-  updateData, 
-  deleteData, 
-  subscribeToData 
+import {
+    deleteData,
+    pushData,
+    readData,
+    subscribeToData,
+    updateData,
+    writeData
 } from '@/services/database';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Hook to subscribe to real-time data at a path
  * Automatically subscribes on mount and unsubscribes on unmount
  */
+const LOG = (path: string | null, msg: string, ...args: unknown[]) => {
+  if (path === 'featureRequests') console.log('[FeatureRequests/useRealtimeData]', msg, ...args);
+};
+
 export function useRealtimeData<T>(path: string | null) {
+  LOG(path, 'useRealtimeData: called with path=', path);
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    LOG(path, 'useRealtimeData: effect run, path=', path);
     if (!path) {
       setData(null);
       setIsLoading(false);
@@ -26,19 +32,29 @@ export function useRealtimeData<T>(path: string | null) {
 
     setIsLoading(true);
     setError(null);
+    LOG(path, 'useRealtimeData: calling subscribeToData for path=', path);
 
     const unsubscribe = subscribeToData<T>(
       path,
       (newData) => {
-        setData(newData);
-        setIsLoading(false);
+        try {
+          LOG(path, 'useRealtimeData: subscription callback, hasData=', newData != null);
+          setData(newData);
+          setIsLoading(false);
+        } catch (e) {
+          if (path === 'featureRequests') console.error('[FeatureRequests/useRealtimeData] subscription callback threw', e);
+          setData(null);
+          setIsLoading(false);
+        }
       },
       (err) => {
+        if (path === 'featureRequests') console.error('[FeatureRequests/useRealtimeData] subscription error', err);
         setError(err);
         setIsLoading(false);
       }
     );
 
+    LOG(path, 'useRealtimeData: subscribeToData returned, cleanup registered');
     return unsubscribe;
   }, [path]);
 

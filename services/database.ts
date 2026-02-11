@@ -1,18 +1,18 @@
 import { getApp } from '@react-native-firebase/app';
 import {
-  child,
-  DatabaseReference,
-  DataSnapshot,
-  equalTo,
-  getDatabase,
-  onValue,
-  orderByChild,
-  push,
-  query,
-  ref,
-  remove,
-  set,
-  update
+    child,
+    DatabaseReference,
+    DataSnapshot,
+    equalTo,
+    getDatabase,
+    onValue,
+    orderByChild,
+    push,
+    query,
+    ref,
+    remove,
+    set,
+    update
 } from '@react-native-firebase/database';
 
 // Get the database instance
@@ -23,8 +23,12 @@ export function getDb() {
 
 // Get a reference to a path in the database
 export function getDbRef(path: string): DatabaseReference {
+  if (path === 'featureRequests') console.log('[FeatureRequests/database] getDbRef: calling getDb...');
   const db = getDb();
-  return ref(db, path);
+  if (path === 'featureRequests') console.log('[FeatureRequests/database] getDbRef: getDb done, calling ref...');
+  const r = ref(db, path);
+  if (path === 'featureRequests') console.log('[FeatureRequests/database] getDbRef: done');
+  return r;
 }
 
 // Write data to a path (overwrites existing data)
@@ -91,17 +95,30 @@ export function subscribeToData<T>(
   callback: (data: T | null) => void,
   onError?: (error: Error) => void
 ): () => void {
+  const isFeatureRequests = path === 'featureRequests';
+  if (isFeatureRequests) console.log('[FeatureRequests/database] subscribeToData: path=', path);
   try {
+    if (isFeatureRequests) console.log('[FeatureRequests/database] subscribeToData: calling getDbRef...');
     const dbRef = getDbRef(path);
+    if (isFeatureRequests) console.log('[FeatureRequests/database] subscribeToData: getDbRef done, calling onValue...');
     
     const unsubscribe = onValue(
       dbRef, 
       (snapshot: DataSnapshot) => {
-        if (snapshot.exists()) {
-          callback(snapshot.val() as T);
-        } else {
-          callback(null);
-        }
+        if (isFeatureRequests) console.log('[FeatureRequests/database] onValue: snapshot received, exists=', snapshot.exists());
+        const runCallback = () => {
+          try {
+            const val = snapshot.exists() ? (snapshot.val() as T) : null;
+            if (isFeatureRequests) console.log('[FeatureRequests/database] onValue: calling callback with val type=', val == null ? 'null' : typeof val);
+            callback(val);
+          } catch (e) {
+            console.error('[FeatureRequests/database] onValue: callback threw', e);
+            onError?.(e instanceof Error ? e : new Error(String(e)));
+            callback(null);
+          }
+        };
+        // Defer to next tick so we're off the native Firebase callback stack (can prevent native→JS crash when updating React state)
+        setTimeout(runCallback, 0);
       },
       (error: Error) => {
         console.error(`❌ Error subscribing to ${path}:`, error);
