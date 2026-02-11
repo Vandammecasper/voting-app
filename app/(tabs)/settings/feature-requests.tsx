@@ -1,13 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
+import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 
@@ -92,11 +98,26 @@ const MOCK_LIST: { id: string; item: FeatureRequestItem }[] = [];
 
 export default function FeatureRequestsScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [titleInput, setTitleInput] = React.useState('');
+  const [subtitleInput, setSubtitleInput] = React.useState('');
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   }, []);
+
+  const openAddModal = React.useCallback(() => setShowAddModal(true), []);
+  const closeAddModal = React.useCallback(() => {
+    setShowAddModal(false);
+    setTitleInput('');
+    setSubtitleInput('');
+  }, []);
+
+  const handleSaveRequest = React.useCallback(() => {
+    // TODO: submit titleInput + subtitleInput to backend when connected
+    closeAddModal();
+  }, [closeAddModal]);
 
   return (
     <ThemedView style={styles.container}>
@@ -124,6 +145,12 @@ export default function FeatureRequestsScreen() {
             <Text style={styles.emptySubtitle}>
               Feature requests from users will appear here once connected to a backend.
             </Text>
+            <PrimaryButton
+              onPress={openAddModal}
+              style={styles.addButton}
+            >
+              Add request
+            </PrimaryButton>
           </View>
         ) : (
           <View style={styles.list}>
@@ -133,6 +160,68 @@ export default function FeatureRequestsScreen() {
           </View>
         )}
       </ScrollView>
+      {MOCK_LIST.length > 0 && (
+        <View style={styles.bottomBar}>
+          <PrimaryButton onPress={openAddModal} style={styles.addButtonBottom}>
+            Add request
+          </PrimaryButton>
+        </View>
+      )}
+
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeAddModal}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.modalKeyboardAvoid}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalHeaderTitle}>New feature request</Text>
+              <Text style={styles.modalLabel}>Title</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={titleInput}
+                onChangeText={setTitleInput}
+                placeholder="e.g. Dark mode support"
+                placeholderTextColor={Colors.placeholder}
+                autoCapitalize="sentences"
+              />
+              <Text style={styles.modalLabel}>Subtitle</Text>
+              <TextInput
+                style={[styles.modalInput, styles.modalInputMultiline]}
+                value={subtitleInput}
+                onChangeText={setSubtitleInput}
+                placeholder="Brief description of your request"
+                placeholderTextColor={Colors.placeholder}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={closeAddModal}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalCloseButtonText}>Close</Text>
+                </TouchableOpacity>
+                <PrimaryButton
+                  onPress={handleSaveRequest}
+                  style={styles.modalSaveButton}
+                >
+                  Save
+                </PrimaryButton>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -171,6 +260,88 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 20,
     fontFamily: defaultFontFamily,
+  },
+  addButton: {
+    marginTop: 24,
+  },
+  bottomBar: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  addButtonBottom: {},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  modalKeyboardAvoid: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalHeaderTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: defaultFontFamily,
+  },
+  modalLabel: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    fontFamily: defaultFontFamily,
+  },
+  modalInput: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.icon,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Colors.text,
+    marginBottom: 16,
+    fontFamily: defaultFontFamily,
+  },
+  modalInputMultiline: {
+    minHeight: 80,
+    paddingTop: 14,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalCloseButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#3a3a3a',
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: defaultFontFamily,
+  },
+  modalSaveButton: {
+    flex: 1,
   },
   list: {
     gap: 16,
