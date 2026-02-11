@@ -6,7 +6,7 @@ import {
     updateData,
     writeData
 } from '@/services/database';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Hook to subscribe to real-time data at a path
@@ -21,8 +21,10 @@ export function useRealtimeData<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     LOG(path, 'useRealtimeData: effect run, path=', path);
     if (!path) {
       setData(null);
@@ -39,23 +41,32 @@ export function useRealtimeData<T>(path: string | null) {
       (newData) => {
         try {
           LOG(path, 'useRealtimeData: subscription callback, hasData=', newData != null);
-          setData(newData);
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setData(newData);
+            setIsLoading(false);
+          }
         } catch (e) {
           if (path === 'featureRequests') console.error('[FeatureRequests/useRealtimeData] subscription callback threw', e);
-          setData(null);
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setData(null);
+            setIsLoading(false);
+          }
         }
       },
       (err) => {
         if (path === 'featureRequests') console.error('[FeatureRequests/useRealtimeData] subscription error', err);
-        setError(err);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setError(err);
+          setIsLoading(false);
+        }
       }
     );
 
     LOG(path, 'useRealtimeData: subscribeToData returned, cleanup registered');
-    return unsubscribe;
+    return () => {
+      isMountedRef.current = false;
+      unsubscribe();
+    };
   }, [path]);
 
   return { data, isLoading, error };

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import auth from '@react-native-firebase/auth';
 import React from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,6 +17,45 @@ import {
 import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+
+const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+
+// Read data via REST API (same pattern as userInput, history, waitingRoom, etc.)
+async function readViaRest<T>(path: string): Promise<T | null> {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) return null;
+    const token = await currentUser.getIdToken();
+    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data as T;
+  } catch {
+    return null;
+  }
+}
+
+// Push new entry via REST API (same pattern as userInput pushViaRest)
+async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) return null;
+    const token = await currentUser.getIdToken();
+    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    return result.name ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Shape of a single feature request (for when data is connected later) */
 export interface FeatureRequestItem {
@@ -93,31 +133,145 @@ function FeatureRequestCard({ id, item }: FeatureRequestCardProps) {
   );
 }
 
-/** Not connected to any backend yet — styling only. */
-const MOCK_LIST: { id: string; item: FeatureRequestItem }[] = [];
+const FEATURE_REQUESTS_PATH = 'featureRequests';
 
-export default function FeatureRequestsScreen() {
+function buildListFromData(data: Record<string, FeatureRequestItem> | null): { id: string; item: FeatureRequestItem }[] {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  return Object.entries(data)
+    .filter((entry): entry is [string, FeatureRequestItem] => {
+      const item = entry[1];
+      return item != null && typeof item === 'object';
+    })
+    .map(([id, item]) => ({ id, item }))
+    .sort((a, b) => {
+      const na = typeof a.item?.createdAt === 'number' && !Number.isNaN(a.item.createdAt) ? a.item.createdAt : 0;
+      const nb = typeof b.item?.createdAt === 'number' && !Number.isNaN(b.item.createdAt) ? b.item.createdAt : 0;
+      return nb - na;
+    });
+}
+
+type ErrorBoundaryState = { hasError: boolean; error?: Error };
+
+class FeatureRequestsErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <ThemedView style={styles.container}>
+          <View style={[styles.emptyState, { flex: 1, justifyContent: 'center' }]}>
+            <Ionicons name="alert-circle-outline" size={64} color={Colors.icon} />
+            <Text style={styles.emptyTitle}>Something went wrong</Text>
+            <Text style={styles.emptySubtitle}>
+              {this.state.error?.message ?? 'Failed to load feature requests.'}
+            </Text>
+          </View>
+        </ThemedView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function FeatureRequestsScreenInner() {
+  const { user } = useAuth();
+  const [list, setList] = React.useState<{ id: string; item: FeatureRequestItem }[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<Error | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<Error | null>(null);
   const [refreshing, setRefreshing] = React.useState(false);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [titleInput, setTitleInput] = React.useState('');
   const [subtitleInput, setSubtitleInput] = React.useState('');
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+  const fetchFeatureRequests = React.useCallback(async () => {
+    const raw = await readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
+    setList(buildListFromData(raw ?? null));
+    setError(null);
   }, []);
 
-  const openAddModal = React.useCallback(() => setShowAddModal(true), []);
+  React.useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH)
+      .then((raw) => {
+        if (!cancelled) {
+          setList(buildListFromData(raw ?? null));
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setList([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const raw = await readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
+      setList(buildListFromData(raw ?? null));
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  const openAddModal = React.useCallback(() => {
+    setSaveError(null);
+    setShowAddModal(true);
+  }, []);
   const closeAddModal = React.useCallback(() => {
     setShowAddModal(false);
     setTitleInput('');
     setSubtitleInput('');
+    setSaveError(null);
   }, []);
 
-  const handleSaveRequest = React.useCallback(() => {
-    // TODO: submit titleInput + subtitleInput to backend when connected
-    closeAddModal();
-  }, [closeAddModal]);
+  const handleSaveRequest = React.useCallback(async () => {
+    const title = titleInput.trim();
+    const description = subtitleInput.trim();
+    if (!title) return;
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      const key = await pushViaRest(FEATURE_REQUESTS_PATH, {
+        title,
+        description: description || undefined,
+        createdAt: Date.now(),
+        userId: user?.uid ?? undefined,
+        userName: user?.displayName ?? undefined,
+        status: 'pending',
+      });
+      if (key == null) {
+        setSaveError(new Error('Failed to save'));
+        return;
+      }
+      closeAddModal();
+      await fetchFeatureRequests();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [closeAddModal, titleInput, subtitleInput, user, fetchFeatureRequests]);
 
   return (
     <ThemedView style={styles.container}>
@@ -125,7 +279,7 @@ export default function FeatureRequestsScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          MOCK_LIST.length === 0 && styles.scrollContentCentered,
+          list.length === 0 && !isLoading && styles.scrollContentCentered,
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -138,12 +292,22 @@ export default function FeatureRequestsScreen() {
           />
         }
       >
-        {MOCK_LIST.length === 0 ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.loadingText}>Loading…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="alert-circle-outline" size={64} color={Colors.icon} />
+            <Text style={styles.emptyTitle}>Could not load feature requests</Text>
+            <Text style={styles.emptySubtitle}>{error.message}</Text>
+          </View>
+        ) : list.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="bulb-outline" size={64} color={Colors.icon} />
             <Text style={styles.emptyTitle}>No feature requests yet</Text>
             <Text style={styles.emptySubtitle}>
-              Feature requests from users will appear here once connected to a backend.
+              Add the first feature request or wait for others to appear here.
             </Text>
             <PrimaryButton
               onPress={openAddModal}
@@ -154,13 +318,13 @@ export default function FeatureRequestsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {MOCK_LIST.map(({ id, item }) => (
+            {list.map(({ id, item }) => (
               <FeatureRequestCard key={id} id={id} item={item} />
             ))}
           </View>
         )}
       </ScrollView>
-      {MOCK_LIST.length > 0 && (
+      {list.length > 0 && (
         <View style={styles.bottomBar}>
           <PrimaryButton onPress={openAddModal} style={styles.addButtonBottom}>
             Add request
@@ -203,19 +367,24 @@ export default function FeatureRequestsScreen() {
                 numberOfLines={3}
                 textAlignVertical="top"
               />
+              {saveError ? (
+                <Text style={styles.modalError}>{saveError.message}</Text>
+              ) : null}
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={closeAddModal}
                   activeOpacity={0.8}
+                  disabled={isSaving}
                 >
                   <Text style={styles.modalCloseButtonText}>Close</Text>
                 </TouchableOpacity>
                 <PrimaryButton
                   onPress={handleSaveRequest}
                   style={styles.modalSaveButton}
+                  disabled={isSaving || !titleInput.trim()}
                 >
-                  Save
+                  {isSaving ? 'Saving…' : 'Save'}
                 </PrimaryButton>
               </View>
             </View>
@@ -223,6 +392,14 @@ export default function FeatureRequestsScreen() {
         </View>
       </Modal>
     </ThemedView>
+  );
+}
+
+export default function FeatureRequestsScreen() {
+  return (
+    <FeatureRequestsErrorBoundary>
+      <FeatureRequestsScreenInner />
+    </FeatureRequestsErrorBoundary>
   );
 }
 
@@ -235,7 +412,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 136,
     paddingBottom: 40,
   },
   scrollContentCentered: {
@@ -245,6 +422,11 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingHorizontal: 40,
+  },
+  loadingText: {
+    color: Colors.icon,
+    fontSize: 16,
+    fontFamily: defaultFontFamily,
   },
   emptyTitle: {
     color: Colors.text,
@@ -342,6 +524,13 @@ const styles = StyleSheet.create({
   },
   modalSaveButton: {
     flex: 1,
+  },
+  modalError: {
+    color: '#ff6b6b',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: defaultFontFamily,
   },
   list: {
     gap: 16,
