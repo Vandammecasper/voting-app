@@ -1,4 +1,9 @@
-const { withEntitlementsPlist, withDangerousMod } = require('@expo/config-plugins');
+const {
+  withEntitlementsPlist,
+  withDangerousMod,
+  withAndroidManifest,
+  AndroidConfig,
+} = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
@@ -299,7 +304,7 @@ module.exports = function withVoipEntitlements(config) {
         // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val window = this.window
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            WindowCompat.setDecorFitsSystemWindows(window, true)
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             if (insetsController != null) {
                 // Use WindowInsetsController for status bar and navigation bar
@@ -312,7 +317,7 @@ module.exports = function withVoipEntitlements(config) {
         // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Window window = getWindow();
-            WindowCompat.setDecorFitsSystemWindows(window, false);
+            WindowCompat.setDecorFitsSystemWindows(window, true);
             WindowInsetsController insetsController = WindowCompat.getInsetsController(window, window.getDecorView());
             if (insetsController != null) {
                 // Use WindowInsetsController for status bar and navigation bar
@@ -366,6 +371,48 @@ module.exports = function withVoipEntitlements(config) {
 
         if (modified) {
           fs.writeFileSync(activityPath, activityContent, 'utf8');
+        }
+      }
+
+      return config;
+    },
+  ]);
+
+  // Force NoActionBar on Android to prevent a native white toolbar.
+  config = withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const stylesPaths = [
+        path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res', 'values', 'styles.xml'),
+        path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res', 'values-v31', 'styles.xml'),
+      ];
+
+      const ensureNoActionBarItems = (xml) => {
+        let updated = xml;
+
+        // Ensure these items are present inside the app theme.
+        if (!updated.includes('name="windowActionBar"')) {
+          updated = updated.replace(
+            /(<style[^>]*name="AppTheme"[^>]*>)/,
+            `$1\n    <item name="windowActionBar">false</item>`
+          );
+        }
+        if (!updated.includes('name="windowNoTitle"')) {
+          updated = updated.replace(
+            /(<style[^>]*name="AppTheme"[^>]*>)/,
+            `$1\n    <item name="windowNoTitle">true</item>`
+          );
+        }
+
+        return updated;
+      };
+
+      for (const stylesPath of stylesPaths) {
+        if (!fs.existsSync(stylesPath)) continue;
+        const stylesXml = fs.readFileSync(stylesPath, 'utf8');
+        const updatedXml = ensureNoActionBarItems(stylesXml);
+        if (updatedXml !== stylesXml) {
+          fs.writeFileSync(stylesPath, updatedXml, 'utf8');
         }
       }
 
@@ -466,6 +513,88 @@ module.exports = function withVoipEntitlements(config) {
 
       fs.writeFileSync(projectPath, projectContent, 'utf8');
       
+      return config;
+    },
+  ]);
+
+  // MainActivity must not expose android:label / window title, or Android shows the app name in the toolbar.
+  config = withAndroidManifest(config, (config) => {
+    const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(config.modResults);
+    mainActivity.$['android:label'] = '';
+    return config;
+  });
+
+  config = withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const packageName = config.android?.package || 'com.caspervd.voting_app';
+      const packagePath = packageName.replace(/\./g, '/');
+      const javaDir = path.join(
+        config.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'java',
+        packagePath
+      );
+
+      const findMainActivity = (dir) => {
+        if (!fs.existsSync(dir)) return null;
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            const found = findMainActivity(fullPath);
+            if (found) return found;
+          } else if (file.name === 'MainActivity.kt' || file.name === 'MainActivity.java') {
+            return fullPath;
+          }
+        }
+        return null;
+      };
+
+      const activityPath = findMainActivity(javaDir);
+      if (!activityPath || !fs.existsSync(activityPath)) {
+        return config;
+      }
+
+      let activityContent = fs.readFileSync(activityPath, 'utf8');
+      if (activityContent.includes('Hide native ActionBar (prevents persistent white top bar)')) {
+        return config;
+      }
+
+      const isKotlin = activityPath.endsWith('.kt');
+      const snippet = isKotlin
+        ? `
+        // Hide native ActionBar (prevents persistent white top bar)
+        supportActionBar?.hide()
+        // Clear default window title (no app name in toolbar)
+        setTitle("")
+`
+        : `
+        // Hide native ActionBar (prevents persistent white top bar)
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+        // Clear default window title (no app name in toolbar)
+        setTitle("");
+`;
+
+      const afterSuperKt = activityContent.replace(
+        /(super\.onCreate\([^)]*\)\s*\n)/,
+        `$1${snippet}`
+      );
+      const afterSuperJava = activityContent.replace(
+        /(super\.onCreate\([^)]*\);\s*\n)/,
+        `$1${snippet}`
+      );
+
+      if (afterSuperKt !== activityContent) {
+        fs.writeFileSync(activityPath, afterSuperKt, 'utf8');
+      } else if (afterSuperJava !== activityContent) {
+        fs.writeFileSync(activityPath, afterSuperJava, 'utf8');
+      }
+
       return config;
     },
   ]);

@@ -88,7 +88,7 @@ function RootLayoutNav() {
           }} 
         />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style="light" backgroundColor={Colors.background} />
     </>
   );
 }

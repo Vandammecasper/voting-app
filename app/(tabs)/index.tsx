@@ -14,7 +14,7 @@ export default function HomeScreen() {
         style={{ fontSize: 100, fontWeight: 'bold' }}
       />
       <Text style={styles.subtitle}>
-        Who's the most valuable player on your team?
+        Who is the most valuable player on your team?
       </Text>
       <View style={styles.buttonContainer}>
         <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>create vote</PrimaryButton>

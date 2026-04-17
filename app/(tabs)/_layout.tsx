@@ -1,9 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { DrawerToggleButton } from '@react-navigation/drawer';
 import { Drawer } from 'expo-router/drawer';
 import React from 'react';
+import { Platform } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
+
+const androidHeaderOptions =
+  Platform.OS === 'android'
+    ? {
+        headerTransparent: false,
+        headerStyle: { backgroundColor: Colors.background },
+      }
+    : {
+        headerTransparent: true,
+      };
 
 export default function DrawerLayout() {
   return (
@@ -14,16 +26,17 @@ export default function DrawerLayout() {
         drawerStyle: {
           backgroundColor: Colors.background,
         },
-        headerTransparent: true,
+        ...androidHeaderOptions,
         headerShadowVisible: false,
-        headerTitle: '',
+        headerTitle: () => null,
         headerTintColor: Colors.text,
         headerShown: true,
+        headerLeft: () => <DrawerToggleButton tintColor={Colors.text} />,
       }}>
       <Drawer.Screen
         name="index"
         options={{
-          headerTitle: '',
+          headerTitle: () => null,
           drawerLabel: 'Home',
           drawerIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
         }}
@@ -31,7 +44,7 @@ export default function DrawerLayout() {
       <Drawer.Screen
         name="history"
         options={{
-          headerTitle: '',
+          headerTitle: () => null,
           drawerLabel: 'My Votes',
           drawerIcon: ({ color }) => <Ionicons size={24} name="time-outline" color={color} />,
         }}
@@ -42,12 +55,15 @@ export default function DrawerLayout() {
           const state = navigation.getState();
           const settingsRoute = state?.routes?.find((r) => r.name === 'settings');
           const nestedState = settingsRoute?.state as { routes: { name: string }[]; index: number } | undefined;
-          const isNestedScreen = nestedState?.routes?.[nestedState.index]?.name !== 'index';
+          const activeSettingsRouteName = nestedState?.routes?.[nestedState.index]?.name;
+          const isNestedScreen = activeSettingsRouteName != null && activeSettingsRouteName !== 'index';
           return {
-            headerTitle: '',
+            headerTitle: () => null,
             drawerLabel: 'Settings',
             drawerIcon: ({ color }) => <Ionicons size={24} name="settings-outline" color={color} />,
-            headerLeft: isNestedScreen ? () => null : undefined,
+            // When navigating inside Settings stack, hide the drawer header
+            // so we only show the Stack header/back button.
+            headerShown: !isNestedScreen,
           };
         }}
       />

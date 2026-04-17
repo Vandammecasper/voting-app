@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
@@ -113,6 +114,14 @@ export default function UserInputScreen() {
   const [isJoining, setIsJoining] = useState(false);
   const [voteType, setVoteType] = useState<'mvpAndLoser' | 'mvpOnly'>('mvpAndLoser');
   const { user } = useAuth();
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  };
 
   const handleCreate = async () => {
     
@@ -248,6 +257,19 @@ export default function UserInputScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
+        {Platform.OS === 'ios' ? (
+          <View style={styles.backButtonIosContent}>
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
+            <Text style={styles.backButtonIosText}>Back</Text>
+          </View>
+        ) : (
+          <View style={styles.backButtonAndroidContent}>
+            <Ionicons name="chevron-back" size={20} color={Colors.icon} />
+            <Text style={styles.backButtonText}>Back</Text>
+          </View>
+        )}
+      </TouchableOpacity>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -399,5 +421,33 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     color: '#6E92FF',
     fontWeight: '600',
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 24,
+    left: 12,
+    zIndex: 100,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  backButtonText: {
+    color: Colors.icon,
+    fontSize: 18,
+    fontFamily: defaultFontFamily,
+  },
+  backButtonIosContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  backButtonIosText: {
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  backButtonAndroidContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
 });

@@ -30,6 +30,16 @@ interface VoteData {
 
 type VotesData = Record<string, VoteData>;
 
+/** Shuffle copy of array (Fisher–Yates) so reveal order is not submission order. */
+function shuffleInPlace<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // Helper to read data using REST API
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
@@ -147,10 +157,10 @@ export default function ResultsScreen() {
     }
   }, [lobbyData?.status, voteId, from]);
 
-  // Convert votes object to sorted array
+  // Convert votes to array in random order (not submission order) for reading aloud
   const votesArray = useMemo(() => {
     if (!votesData) return [];
-    return Object.values(votesData).sort((a, b) => a.submittedAt - b.submittedAt);
+    return shuffleInPlace(Object.values(votesData));
   }, [votesData]);
 
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;

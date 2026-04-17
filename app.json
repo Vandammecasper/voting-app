@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Voting app",
+    "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.1.0",
+    "version": "1.3.1",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "voting-app",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -19,14 +19,19 @@
       "appleTeamId": "579BFJXWX8"
     },
     "android": {
+      "androidStatusBar": {
+        "backgroundColor": "#292929",
+        "barStyle": "light-content",
+        "translucent": false
+      },
       "softwareKeyboardLayoutMode": "adjustResize",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#292929",
         "foregroundImage": "./assets/images/logo.png",
         "backgroundImage": "./assets/images/logo.png",
         "monochromeImage": "./assets/images/logo.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.caspervd.voting_app",
       "googleServicesFile": "./google-services.json"
@@ -47,9 +52,9 @@
           "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#E6F4FE",
+          "backgroundColor": "#292929",
           "dark": {
-            "backgroundColor": "#E6F4FE"
+            "backgroundColor": "#292929"
           }
         }
       ],

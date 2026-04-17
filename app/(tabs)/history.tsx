@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { GradientText } from '@/components/gradient-text';
@@ -93,6 +93,11 @@ async function deleteViaRest(path: string): Promise<boolean> {
 }
 
 // Calculate winners from votes
+/** Outcomes from votes are only shown in My Votes after the lobby has moved past the voting phase. */
+function statusShowsPublicVoteResults(status: string): boolean {
+  return status === 'results' || status === 'ranking' || status === 'completed';
+}
+
 function calculateWinners(votes: Record<string, VoteData>): { mvp: string | null; loser: string | null } {
   const mvpCounts: Record<string, number> = {};
   const loserCounts: Record<string, number> = {};
@@ -156,6 +161,7 @@ interface HistoryCardProps {
 
 function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: HistoryCardProps) {
   const isCompleted = item.lobbyData.status === 'ranking' || item.lobbyData.status === 'completed';
+  const showResults = statusShowsPublicVoteResults(item.lobbyData.status);
   
   const handleDelete = () => {
     onDelete();
@@ -201,25 +207,31 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
       </View>
       
       <View style={[styles.cardContent, isDeleting && styles.cardContentFaded]}>
-        <View style={styles.resultRow}>
-          <View style={[styles.resultItem, item.voteType === 'mvpOnly' && styles.resultItemFull]}>
-            <Text style={styles.resultLabel}>🏆 MVP</Text>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {item.mvpWinner || '—'}
-            </Text>
+        {showResults ? (
+          <View style={styles.resultRow}>
+            <View style={[styles.resultItem, item.voteType === 'mvpOnly' && styles.resultItemFull]}>
+              <Text style={styles.resultLabel}>🏆 MVP</Text>
+              <Text style={styles.resultName} numberOfLines={1}>
+                {item.mvpWinner || '—'}
+              </Text>
+            </View>
+            {item.voteType === 'mvpAndLoser' && (
+              <>
+                <View style={styles.resultDivider} />
+                <View style={styles.resultItem}>
+                  <Text style={styles.resultLabel}>🤡 Loser</Text>
+                  <Text style={styles.resultName} numberOfLines={1}>
+                    {item.loserWinner || '—'}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
-          {item.voteType === 'mvpAndLoser' && (
-            <>
-              <View style={styles.resultDivider} />
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>🤡 Loser</Text>
-                <Text style={styles.resultName} numberOfLines={1}>
-                  {item.loserWinner || '—'}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
+        ) : (
+          <Text style={styles.resultsPendingText}>
+            Results appear after everyone has finished voting.
+          </Text>
+        )}
       </View>
       
       <View style={[styles.cardFooter, isDeleting && styles.cardContentFaded]}>
@@ -270,13 +282,12 @@ export default function HistoryScreen() {
       for (const [, entry] of Object.entries(userHistory)) {
         const lobbyId = entry.lobbyId;
         
-        // Fetch lobby data and votes in parallel
-        const [lobbyData, votesData] = await Promise.all([
-          readViaRest<LobbyData>(`lobbies/${lobbyId}`),
-          readViaRest<Record<string, VoteData>>(`votes/${lobbyId}`),
-        ]);
+        const lobbyData = await readViaRest<LobbyData>(`lobbies/${lobbyId}`);
 
         if (lobbyData) {
+          const votesData = statusShowsPublicVoteResults(lobbyData.status)
+            ? await readViaRest<Record<string, VoteData>>(`votes/${lobbyId}`)
+            : null;
           const winners = votesData ? calculateWinners(votesData) : { mvp: null, loser: null };
           
           historyItems.push({
@@ -314,7 +325,7 @@ export default function HistoryScreen() {
     fetchHistory(true);
   };
 
-  const handleCardPress = (item: HistoryItem) => {
+  const handleCardPress = async (item: HistoryItem) => {
     const status = item.lobbyData.status;
     
     // Navigate to appropriate screen based on vote status
@@ -327,13 +338,24 @@ export default function HistoryScreen() {
           params: { voteId: item.lobbyId, from: 'history' },
         });
         break;
-      case 'voting':
-        // Rejoin the voting screen
+      case 'voting': {
+        // Already voted → waiting screen with counts; not yet → voting form
+        if (user) {
+          const myVote = await readViaRest<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
+          if (myVote != null) {
+            router.push({
+              pathname: '/votingWaiting',
+              params: { voteId: item.lobbyId, from: 'history' },
+            });
+            break;
+          }
+        }
         router.push({
           pathname: '/voting',
           params: { voteId: item.lobbyId, from: 'history' },
         });
         break;
+      }
       case 'results':
         // Go to results screen
         router.push({
@@ -503,7 +525,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: Platform.OS === 'android' ? 0 : 80,
     paddingBottom: 40,
   },
   centerContent: {
@@ -650,6 +672,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: defaultFontFamily,
+  },
+  resultsPendingText: {
+    color: Colors.icon,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    fontFamily: defaultFontFamily,
+    paddingVertical: 4,
   },
   cardFooter: {
     flexDirection: 'row',

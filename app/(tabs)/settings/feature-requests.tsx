@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: 64,
     alignItems: 'center',
   },
   addButtonBottom: {},

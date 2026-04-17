@@ -2,7 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
@@ -114,10 +127,21 @@ interface DropdownProps {
   options: string[];
   placeholder: string;
   onSelect: (value: string) => void;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
-function Dropdown({ value, options, placeholder, onSelect }: DropdownProps) {
+function Dropdown({ value, options, placeholder, onSelect, onOpenChange }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
+
+  useEffect(() => {
+    return () => {
+      onOpenChange?.(false);
+    };
+  }, [onOpenChange]);
 
   return (
     <View style={styles.dropdownContainer}>
@@ -131,12 +155,13 @@ function Dropdown({ value, options, placeholder, onSelect }: DropdownProps) {
         <AnimatedChevron isOpen={isOpen} />
       </Pressable>
 
-      {isOpen && (
+      {isOpen && Platform.OS !== 'android' && (
         <View style={styles.dropdownList}>
-          <ScrollView 
+          <ScrollView
             style={styles.dropdownScroll}
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={Platform.OS === 'android'}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
           >
             {options.map((option) => (
               <Pressable
@@ -164,12 +189,60 @@ function Dropdown({ value, options, placeholder, onSelect }: DropdownProps) {
           </ScrollView>
         </View>
       )}
+
+      {Platform.OS === 'android' && (
+        <Modal
+          visible={isOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsOpen(false)}
+        >
+          <View style={styles.dropdownModalOverlay}>
+            <Pressable style={styles.dropdownModalBackdrop} onPress={() => setIsOpen(false)} />
+            <View style={styles.dropdownModalCard}>
+              <ScrollView
+                style={styles.dropdownModalScroll}
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
+                {options.map((option) => (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.dropdownItem,
+                      value === option && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      onSelect(option);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      value === option && styles.dropdownItemTextSelected,
+                    ]}>
+                      {option}
+                    </Text>
+                    {value === option && (
+                      <Ionicons name="checkmark" size={18} color="#6E92FF" />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
 
 export default function VotingScreen() {
-  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId, from } = useLocalSearchParams<{
+    voteId?: string;
+    from?: string;
+  }>();
   const { user } = useAuth();
   
   const [mvpName, setMvpName] = useState('');
@@ -179,7 +252,66 @@ export default function VotingScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
   const [voteType, setVoteType] = useState<'mvpOnly' | 'mvpAndLoser'>('mvpAndLoser');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [openDropdownCount, setOpenDropdownCount] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const mvpCommentYRef = useRef(0);
+  const loserCommentYRef = useRef(0);
+  const activeCommentFieldRef = useRef<'mvp' | 'loser' | null>(null);
+  const isAnyDropdownOpen = openDropdownCount > 0;
+
+  const handleDropdownOpenChange = (isOpen: boolean) => {
+    setOpenDropdownCount((prev) => {
+      if (isOpen) return prev + 1;
+      return Math.max(0, prev - 1);
+    });
+  };
+
+  const scrollActiveCommentIntoView = () => {
+    const delay = Platform.OS === 'android' ? 280 : 120;
+    setTimeout(() => {
+      const scroll = scrollRef.current;
+      if (!scroll) return;
+      const field = activeCommentFieldRef.current;
+      if (field === 'loser') {
+        scroll.scrollTo({ y: Math.max(0, loserCommentYRef.current - 48), animated: true });
+        return;
+      }
+      if (field === 'mvp') {
+        scroll.scrollTo({ y: Math.max(0, mvpCommentYRef.current - 32), animated: true });
+      }
+    }, delay);
+  };
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      if (Platform.OS === 'android') {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+      const delay = Platform.OS === 'android' ? 280 : 120;
+      setTimeout(() => {
+        const scroll = scrollRef.current;
+        if (!scroll) return;
+        const field = activeCommentFieldRef.current;
+        if (field === 'loser') {
+          scroll.scrollTo({ y: Math.max(0, loserCommentYRef.current - 48), animated: true });
+        } else if (field === 'mvp') {
+          scroll.scrollTo({ y: Math.max(0, mvpCommentYRef.current - 32), animated: true });
+        }
+      }, delay);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      if (Platform.OS === 'android') {
+        setKeyboardHeight(0);
+      }
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Fetch participants and lobby data on mount
   useEffect(() => {
@@ -300,16 +432,25 @@ export default function VotingScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled={Platform.OS === 'ios'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
         <ScrollView 
           ref={scrollRef}
           style={styles.scrollView} 
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom:
+                24 + (Platform.OS === 'android' ? Math.round(keyboardHeight * 0.60) : 0),
+            },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           nestedScrollEnabled
+          scrollEnabled={!isAnyDropdownOpen}
+          scrollEventThrottle={16}
         >
         <GradientText 
           text="Your vote" 
@@ -323,22 +464,35 @@ export default function VotingScreen() {
           options={participantNames}
           placeholder="Select the match MVP"
           onSelect={setMvpName}
+          onOpenChange={handleDropdownOpenChange}
         />
 
         <Text style={styles.sectionLabel}>MVP comment</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Why is this person the MVP?"
-          placeholderTextColor={Colors.placeholder}
-          value={mvpComment}
-          onChangeText={setMvpComment}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollTo({ y: 180, animated: true }), 150);
+        <View
+          onLayout={(e) => {
+            mvpCommentYRef.current = e.nativeEvent.layout.y;
           }}
-        />
+        >
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Why is this person the MVP?"
+            placeholderTextColor={Colors.placeholder}
+            value={mvpComment}
+            onChangeText={setMvpComment}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            onFocus={() => {
+              activeCommentFieldRef.current = 'mvp';
+              scrollActiveCommentIntoView();
+            }}
+            onBlur={() => {
+              if (activeCommentFieldRef.current === 'mvp') {
+                activeCommentFieldRef.current = null;
+              }
+            }}
+          />
+        </View>
 
         {/* Loser Section - only show if vote type is mvpAndLoser */}
         {voteType === 'mvpAndLoser' && (
@@ -349,6 +503,7 @@ export default function VotingScreen() {
               options={participantNames}
               placeholder="Select the match loser"
               onSelect={setLoserName}
+              onOpenChange={handleDropdownOpenChange}
             />
 
             <Text style={styles.sectionLabel}>Loser comment</Text>
@@ -361,8 +516,17 @@ export default function VotingScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              onLayout={(e) => {
+                loserCommentYRef.current = e.nativeEvent.layout.y;
+              }}
               onFocus={() => {
-                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+                activeCommentFieldRef.current = 'loser';
+                scrollActiveCommentIntoView();
+              }}
+              onBlur={() => {
+                if (activeCommentFieldRef.current === 'loser') {
+                  activeCommentFieldRef.current = null;
+                }
               }}
             />
           </>
@@ -500,8 +664,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
+  /** Explicit height so the dropdown has a real viewport on Android. */
+  dropdownListAndroid: {
+    height: 180,
+  },
   dropdownScroll: {
-    maxHeight: 180,
+    flex: 1,
+  },
+  dropdownModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  dropdownModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+  dropdownModalCard: {
+    maxHeight: '60%',
+    backgroundColor: '#3a3a3a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4a4a4a',
+    overflow: 'hidden',
+  },
+  dropdownModalScroll: {
+    maxHeight: 360,
   },
   dropdownItem: {
     flexDirection: 'row',

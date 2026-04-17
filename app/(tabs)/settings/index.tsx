@@ -6,14 +6,20 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 
 const REPORT_EMAIL = 'caspervandamme03@gmail.com';
-const REPORT_SUBJECT = 'MVP vote issue report';
+/** Shown as the email subject when users tap “Report an issue”. */
+const BUG_REPORT_SUBJECT = '[MVP vote] Bug report';
 const SUPPORT_URL = 'https://mvpvote.vercel.app/support';
 const PRIVACY_URL = 'https://mvpvote.vercel.app/privacy';
 const USER_AGREEMENT_URL = 'https://mvpvote.vercel.app/terms';
 
-function openMailto() {
-  const encodedSubject = encodeURIComponent(REPORT_SUBJECT);
-  Linking.openURL(`mailto:${REPORT_EMAIL}?subject=${encodedSubject}`).catch(() => {});
+function openBugReportMail() {
+  const params = [
+    `subject=${encodeURIComponent(BUG_REPORT_SUBJECT)}`,
+    `body=${encodeURIComponent(
+      'Please describe what went wrong and how we can reproduce it:\n\n'
+    )}`,
+  ].join('&');
+  Linking.openURL(`mailto:${REPORT_EMAIL}?${params}`).catch(() => {});
 }
 
 function openSupport() {
@@ -60,7 +66,7 @@ export default function SettingsScreen() {
         <SettingsButton
           icon="mail-outline"
           label="Report an issue"
-          onPress={openMailto}
+          onPress={openBugReportMail}
         />
         <SettingsButton
           icon="help-circle-outline"
