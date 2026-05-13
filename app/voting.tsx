@@ -23,6 +23,7 @@ import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
 
@@ -329,10 +330,20 @@ export default function VotingScreen() {
       if (lobbyData?.voteType) {
         setVoteType(lobbyData.voteType);
       }
+
+      if (user?.uid) {
+        const draft = await loadVoteDraft(voteId, user.uid);
+        if (draft) {
+          setMvpName(draft.mvpName);
+          setMvpComment(draft.mvpComment);
+          setLoserName(draft.loserName);
+          setLoserComment(draft.loserComment);
+        }
+      }
     }
     
     fetchData();
-  }, [voteId]);
+  }, [voteId, user?.uid]);
 
   const handleSubmit = async () => {
     if (!mvpName) {
@@ -402,6 +413,8 @@ export default function VotingScreen() {
         Alert.alert('Error', 'Failed to submit vote. Please try again.');
         return;
       }
+
+      await removeVoteDraft(voteId, user.uid);
 
       // Navigate to voting waiting screen
       router.replace({

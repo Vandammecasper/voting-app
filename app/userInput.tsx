@@ -12,6 +12,24 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
 
+type JoinableLobbyStatus = 'waiting' | 'voting';
+
+interface JoinableLobbyData {
+  status: string;
+  creatorId?: string;
+}
+
+interface ParticipantData {
+  name: string;
+  joinedAt: number;
+  isCreator: boolean;
+  nameChangeRequested?: boolean;
+}
+
+function isJoinableLobbyStatus(status: string): status is JoinableLobbyStatus {
+  return status === 'waiting' || status === 'voting';
+}
+
 // Helper to read data using REST API (bypasses SDK issues)
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
@@ -208,7 +226,7 @@ export default function UserInputScreen() {
         return;
       }
 
-      const lobbyData = await readViaRest<{ status: string }>(`lobbies/${lobbyId}`);
+      const lobbyData = await readViaRest<JoinableLobbyData>(`lobbies/${lobbyId}`);
 
       if (!lobbyData) {
         console.error('❌ Lobby data not found');
@@ -216,17 +234,22 @@ export default function UserInputScreen() {
         return;
       }
 
-      if (lobbyData.status !== 'waiting') {
+      if (!isJoinableLobbyStatus(lobbyData.status)) {
         console.error('❌ Lobby is not accepting participants');
         Alert.alert('Error', 'This lobby is no longer accepting participants.');
         return;
       }
 
-      const writeSuccess = await writeViaRest(`participants/${lobbyId}/${user.uid}`, {
+      const existingParticipant = await readViaRest<ParticipantData>(`participants/${lobbyId}/${user.uid}`);
+      const participantData: ParticipantData = {
+        ...existingParticipant,
         name: name.trim(),
-        joinedAt: Date.now(),
-        isCreator: false,
-      });
+        joinedAt: existingParticipant?.joinedAt ?? Date.now(),
+        isCreator: existingParticipant?.isCreator ?? lobbyData.creatorId === user.uid,
+        nameChangeRequested: false,
+      };
+
+      const writeSuccess = await writeViaRest(`participants/${lobbyId}/${user.uid}`, participantData);
       
       if (!writeSuccess) {
         console.error('❌ Failed to add participant');
@@ -242,7 +265,23 @@ export default function UserInputScreen() {
 
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Navigate to the waiting room with the lobby ID
+      if (lobbyData.status === 'voting') {
+        const existingVote = await readViaRest(`votes/${lobbyId}/${user.uid}`);
+        if (existingVote) {
+          router.push({
+            pathname: '/votingWaiting',
+            params: { voteId: lobbyId },
+          });
+          return;
+        }
+
+        router.push({
+          pathname: '/voting',
+          params: { voteId: lobbyId },
+        });
+        return;
+      }
+
       router.push({
         pathname: '/waitingRoom',
         params: { voteId: lobbyId },

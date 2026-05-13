@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,8 +9,16 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
+import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  hasVoteDraftContent,
+  loadVoteDraft,
+  removeVoteDraft,
+  saveVoteDraft,
+  VoteDraftInput,
+} from '@/services/voteDraftStorage';
 
 const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
 
@@ -129,6 +138,13 @@ function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
 
 const GRADIENT_COLORS = ['#6E92FF', '#90FF91'] as const;
 
+const EMPTY_VOTE_DRAFT: VoteDraftInput = {
+  mvpName: '',
+  mvpComment: '',
+  loserName: '',
+  loserComment: '',
+};
+
 // Loader gradient: purple -> blue -> green (a bit more purple)
 const LOADER_GRADIENT = ['#A78BFA', '#6E92FF', '#90FF91'] as const;
 
@@ -237,6 +253,7 @@ interface LobbyData {
   createdAt: number;
   status: string;
   code: string;
+  voteType?: 'mvpOnly' | 'mvpAndLoser';
 }
 
 type ParticipantsData = Record<string, Participant>;
@@ -256,6 +273,9 @@ export default function WaitingRoomScreen() {
   const [isCopied, setIsCopied] = useState(false);
   const [showNameInputModal, setShowNameInputModal] = useState(false);
   const [newNameInput, setNewNameInput] = useState('');
+  const [showDraftPanel, setShowDraftPanel] = useState(false);
+  const [voteDraft, setVoteDraft] = useState<VoteDraftInput>(EMPTY_VOTE_DRAFT);
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const hasNavigated = useRef(false);
 
   // Copy lobby code to clipboard
@@ -285,6 +305,39 @@ export default function WaitingRoomScreen() {
 
   // Check if current user is the creator
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadExistingDraft() {
+      if (!voteId || !user?.uid) {
+        setVoteDraft(EMPTY_VOTE_DRAFT);
+        setHasSavedDraft(false);
+        return;
+      }
+
+      const storedDraft = await loadVoteDraft(voteId, user.uid);
+      if (!isMounted) return;
+
+      const nextDraft: VoteDraftInput = storedDraft
+        ? {
+            mvpName: storedDraft.mvpName,
+            mvpComment: storedDraft.mvpComment,
+            loserName: storedDraft.loserName,
+            loserComment: storedDraft.loserComment,
+          }
+        : EMPTY_VOTE_DRAFT;
+
+      setVoteDraft(nextDraft);
+      setHasSavedDraft(hasVoteDraftContent(nextDraft));
+    }
+
+    loadExistingDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [voteId, user?.uid]);
 
   // Navigate to voting screen when status changes to 'voting'
   useEffect(() => {
@@ -473,6 +526,27 @@ export default function WaitingRoomScreen() {
     }
   };
 
+  const handleSaveDraft = async (draft: VoteDraftInput) => {
+    if (!voteId || !user?.uid) {
+      throw new Error('Missing vote or user while saving draft');
+    }
+
+    if (hasVoteDraftContent(draft)) {
+      await saveVoteDraft(voteId, user.uid, draft);
+      setVoteDraft(draft);
+      setHasSavedDraft(true);
+      return;
+    }
+
+    await removeVoteDraft(voteId, user.uid);
+    setVoteDraft(EMPTY_VOTE_DRAFT);
+    setHasSavedDraft(false);
+  };
+
+  const handleExitLobby = () => {
+    router.replace('/(tabs)');
+  };
+
   // Build participants list: newest first, host always at the end
   const participants: DisplayParticipant[] = React.useMemo(() => {
     try {
@@ -519,8 +593,26 @@ export default function WaitingRoomScreen() {
     }
   }, [lobbyData, participantsData]);
 
+  const participantNames = React.useMemo(() => {
+    if (!participantsData) {
+      return [];
+    }
+
+    return Object.values(participantsData)
+      .filter((participant) => participant?.name)
+      .map((participant) => participant.name);
+  }, [participantsData]);
+
   return (
     <ThemedView style={styles.container}>
+      <TouchableOpacity
+        style={styles.exitButton}
+        onPress={handleExitLobby}
+        activeOpacity={0.6}
+      >
+        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
+      </TouchableOpacity>
+
       <View style={styles.topSection}>
         <SecondaryButton style={{ marginHorizontal: 56 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={handleCopyCode}>
           {isCopied ? 'Copied!' : `ID: ${lobbyData?.code || 'Loading...'}`}
@@ -596,9 +688,24 @@ export default function WaitingRoomScreen() {
               {isStarting ? 'Starting...' : 'start voting'}
             </PrimaryButton>
           )}
-          <SecondaryButton style={{ marginHorizontal: 24 }} textStyle={{ fontSize: 18 }} onPress={() => router.replace('/(tabs)')}>exit vote</SecondaryButton>
+          <SecondaryButton
+            style={{ marginHorizontal: 24 }}
+            textStyle={{ fontSize: 18 }}
+            onPress={() => setShowDraftPanel(true)}
+          >
+            {hasSavedDraft ? 'edit draft vote' : 'draft vote'}
+          </SecondaryButton>
         </View>
       </View>
+
+      <VoteDraftPanel
+        visible={showDraftPanel}
+        participantNames={participantNames}
+        voteType={lobbyData?.voteType ?? 'mvpAndLoser'}
+        initialDraft={voteDraft}
+        onClose={() => setShowDraftPanel(false)}
+        onSave={handleSaveDraft}
+      />
 
       {/* Name Change Modal - Cross-platform (iOS + Android) */}
       <Modal
@@ -731,6 +838,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
     width: '100%',
     gap: 16,
+  },
+  exitButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    zIndex: 1000,
+    padding: 8,
   },
   modalOverlay: {
     flex: 1,
