@@ -2,7 +2,7 @@
   "expo": {
     "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -72,7 +72,8 @@
           },
           "androidWindowSoftInputMode": "adjustResize"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
