@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useVersionCheck } from '@/hooks/useVersionCheck';
 
 export const unstable_settings = {
   anchor: '(tabs)', // drawer navigation group
@@ -30,6 +31,7 @@ const AppTheme = {
 
 function RootLayoutNav() {
   const { isLoading } = useAuth();
+  useVersionCheck(!isLoading);
 
   if (isLoading) {
     return (

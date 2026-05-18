@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -137,10 +137,31 @@ export function VoteDraftPanel({
   const [openDropdown, setOpenDropdown] = useState<DraftDropdownField | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isMounted, setIsMounted] = useState(visible);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(HIDDEN_PANEL_TRANSLATE_Y)).current;
   const lastSavedDraftKeyRef = useRef<string | null>(null);
   const wasVisibleRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const mvpCommentYRef = useRef(0);
+  const loserCommentYRef = useRef(0);
+  const activeCommentFieldRef = useRef<'mvp' | 'loser' | null>(null);
+
+  const scrollActiveCommentIntoView = useCallback(() => {
+    const delay = Platform.OS === 'android' ? 280 : 120;
+    setTimeout(() => {
+      const scroll = scrollRef.current;
+      if (!scroll) return;
+      const field = activeCommentFieldRef.current;
+      if (field === 'loser') {
+        scroll.scrollTo({ y: Math.max(0, loserCommentYRef.current - 48), animated: true });
+        return;
+      }
+      if (field === 'mvp') {
+        scroll.scrollTo({ y: Math.max(0, mvpCommentYRef.current - 32), animated: true });
+      }
+    }, delay);
+  }, []);
 
   const currentDraft = useMemo<VoteDraftInput>(
     () => ({
@@ -202,6 +223,7 @@ export function VoteDraftPanel({
       }),
     ]).start(() => {
       setIsMounted(false);
+      setKeyboardHeight(0);
       sheetTranslateY.setValue(HIDDEN_PANEL_TRANSLATE_Y);
       backdropOpacity.setValue(0);
       onClose();
@@ -283,6 +305,27 @@ export function VoteDraftPanel({
     };
   }, [currentDraftKey, isMounted, saveDraftNow, visible]);
 
+  useEffect(() => {
+    if (!isMounted) {
+      return;
+    }
+
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      scrollActiveCommentIntoView();
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [isMounted, scrollActiveCommentIntoView]);
+
   return (
     <Modal
       visible={isMounted}
@@ -291,11 +334,7 @@ export function VoteDraftPanel({
       onRequestClose={closePanel}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
+      <View style={styles.overlay}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closePanel} />
         </Animated.View>
@@ -320,9 +359,14 @@ export function VoteDraftPanel({
           </View>
 
           <ScrollView
+            ref={scrollRef}
             style={styles.formScroll}
-            contentContainerStyle={styles.formContent}
+            contentContainerStyle={[
+              styles.formContent,
+              { paddingBottom: 24 + keyboardHeight },
+            ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
             scrollEnabled={!openDropdown}
@@ -342,16 +386,31 @@ export function VoteDraftPanel({
             />
 
             <Text style={styles.sectionLabel}>MVP comment</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Why is this person the MVP?"
-              placeholderTextColor={Colors.placeholder}
-              value={mvpComment}
-              onChangeText={setMvpComment}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
+            <View
+              onLayout={(e) => {
+                mvpCommentYRef.current = e.nativeEvent.layout.y;
+              }}
+            >
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Why is this person the MVP?"
+                placeholderTextColor={Colors.placeholder}
+                value={mvpComment}
+                onChangeText={setMvpComment}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                onFocus={() => {
+                  activeCommentFieldRef.current = 'mvp';
+                  scrollActiveCommentIntoView();
+                }}
+                onBlur={() => {
+                  if (activeCommentFieldRef.current === 'mvp') {
+                    activeCommentFieldRef.current = null;
+                  }
+                }}
+              />
+            </View>
 
             {voteType === 'mvpAndLoser' && (
               <>
@@ -379,12 +438,24 @@ export function VoteDraftPanel({
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
+                  onLayout={(e) => {
+                    loserCommentYRef.current = e.nativeEvent.layout.y;
+                  }}
+                  onFocus={() => {
+                    activeCommentFieldRef.current = 'loser';
+                    scrollActiveCommentIntoView();
+                  }}
+                  onBlur={() => {
+                    if (activeCommentFieldRef.current === 'loser') {
+                      activeCommentFieldRef.current = null;
+                    }
+                  }}
                 />
               </>
             )}
           </ScrollView>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -407,6 +478,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 34,
+    overflow: 'hidden',
   },
   dragArea: {
     marginBottom: 12,
@@ -441,7 +513,7 @@ const styles = StyleSheet.create({
     color: '#FF8A8A',
   },
   formScroll: {
-    flexGrow: 0,
+    flex: 1,
   },
   formContent: {
     paddingBottom: 8,
