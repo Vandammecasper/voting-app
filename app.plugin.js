@@ -352,9 +352,8 @@ module.exports = function withVoipEntitlements(config) {
           modified = true;
         }
 
-        // Comment out deprecated Window API calls
-        const deprecatedPatterns = [
-        if (activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES') || 
+        // Replace deprecated LAYOUT_IN_DISPLAY_CUTOUT_MODE constants
+        if (activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES') ||
             activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT')) {
           activityContent = activityContent.replace(
             /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/g,
