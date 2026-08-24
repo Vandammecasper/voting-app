@@ -205,7 +205,7 @@ export default function RankingScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView safeAndroid style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.loadingText}>Loading rankings...</Text>
         </View>
@@ -214,7 +214,7 @@ export default function RankingScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

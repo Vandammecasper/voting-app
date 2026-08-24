@@ -1,8 +1,10 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { isOnboardingCompleted } from '@/services/onboardingStorage';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+
+import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
+import { isOnboardingCompleted } from '@/services/onboardingStorage';
 
 export default function Index() {
   const [isChecking, setIsChecking] = useState(true);
@@ -27,9 +29,9 @@ export default function Index() {
 
   if (isChecking) {
     return (
-      <View style={styles.container}>
+      <ThemedView safeAndroid style={styles.container}>
         <ActivityIndicator size="large" color={Colors.tint} />
-      </View>
+      </ThemedView>
     );
   }
 

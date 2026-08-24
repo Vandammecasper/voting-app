@@ -242,8 +242,26 @@ module.exports = function withVoipEntitlements(config) {
         let activityContent = fs.readFileSync(activityPath, 'utf8');
         let modified = false;
 
+        // Targeting API 36 requires edge-to-edge; keep existing patches in sync.
+        const edgeToEdgeContent = activityContent
+          .replace(
+            /setDecorFitsSystemWindows\(([^,]+),\s*true\)/g,
+            'setDecorFitsSystemWindows($1, false)'
+          )
+          .replace(
+            /Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs/g,
+            'Android 16 compatibility: draw edge-to-edge; JS handles system-bar insets'
+          );
+        if (edgeToEdgeContent !== activityContent) {
+          activityContent = edgeToEdgeContent;
+          modified = true;
+        }
+
         // Check if we already applied the fix
-        if (activityContent.includes('WindowInsetsController') && activityContent.includes('Android 15 compatibility')) {
+        if (activityContent.includes('WindowInsetsController') && activityContent.includes('Android 16 compatibility')) {
+          if (modified) {
+            fs.writeFileSync(activityPath, activityContent, 'utf8');
+          }
           return config;
         }
 
@@ -293,18 +311,18 @@ module.exports = function withVoipEntitlements(config) {
           modified = true;
         }
 
-        // Add Android 15 compatibility code in onCreate
+        // Add Android 16 edge-to-edge compatibility code in onCreate
         const onCreateRegex = isKotlin
           ? /(override\s+fun\s+onCreate\s*\([^)]*\)\s*\{)/
           : /(protected\s+void\s+onCreate\s*\([^)]*\)\s*\{)/;
 
-        if (onCreateRegex.test(activityContent) && !activityContent.includes('Android 15 compatibility')) {
+        if (onCreateRegex.test(activityContent) && !activityContent.includes('Android 16 compatibility')) {
           const android15Fix = isKotlin
             ? `
-        // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
+        // Android 16 compatibility: draw edge-to-edge; JS handles system-bar insets
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val window = this.window
-            WindowCompat.setDecorFitsSystemWindows(window, true)
+            WindowCompat.setDecorFitsSystemWindows(window, false)
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             if (insetsController != null) {
                 // Use WindowInsetsController for status bar and navigation bar
@@ -314,10 +332,10 @@ module.exports = function withVoipEntitlements(config) {
         }
 `
             : `
-        // Android 15 compatibility: Use WindowInsetsController instead of deprecated Window APIs
+        // Android 16 compatibility: draw edge-to-edge; JS handles system-bar insets
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Window window = getWindow();
-            WindowCompat.setDecorFitsSystemWindows(window, true);
+            WindowCompat.setDecorFitsSystemWindows(window, false);
             WindowInsetsController insetsController = WindowCompat.getInsetsController(window, window.getDecorView());
             if (insetsController != null) {
                 // Use WindowInsetsController for status bar and navigation bar
@@ -334,7 +352,8 @@ module.exports = function withVoipEntitlements(config) {
           modified = true;
         }
 
-        // Replace deprecated LAYOUT_IN_DISPLAY_CUTOUT_MODE constants
+        // Comment out deprecated Window API calls
+        const deprecatedPatterns = [
         if (activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES') || 
             activityContent.includes('LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT')) {
           activityContent = activityContent.replace(

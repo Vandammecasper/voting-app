@@ -195,7 +195,7 @@ export default function ResultsScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView safeAndroid style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.loadingText}>Loading results...</Text>
         </View>
@@ -206,7 +206,7 @@ export default function ResultsScreen() {
   // Non-creator view - simple waiting message
   if (!isCreator) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView safeAndroid style={styles.container}>
         <View style={styles.centerContent}>
           <Ionicons name="megaphone-outline" size={64} color={Colors.icon} />
           <GradientText 
@@ -227,7 +227,7 @@ export default function ResultsScreen() {
 
   // Creator view - show individual votes
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <TouchableOpacity 
         style={styles.exitButton}
         onPress={handleExit}

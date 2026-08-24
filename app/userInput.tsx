@@ -295,7 +295,7 @@ export default function UserInputScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
         {Platform.OS === 'ios' ? (
           <View style={styles.backButtonIosContent}>

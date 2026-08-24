@@ -3,6 +3,7 @@ import { DrawerToggleButton } from '@react-navigation/drawer';
 import { Drawer } from 'expo-router/drawer';
 import React from 'react';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -18,6 +19,8 @@ const androidHeaderOptions =
       };
 
 export default function DrawerLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Drawer
       screenOptions={{
@@ -25,6 +28,10 @@ export default function DrawerLayout() {
         drawerInactiveTintColor: Colors.icon,
         drawerStyle: {
           backgroundColor: Colors.background,
+        },
+        sceneContainerStyle: {
+          backgroundColor: Colors.background,
+          ...(Platform.OS === 'android' ? { paddingBottom: insets.bottom } : null),
         },
         ...androidHeaderOptions,
         headerShadowVisible: false,

@@ -182,7 +182,7 @@ export default function VotingWaitingScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <TouchableOpacity 
         style={styles.exitButton}
         onPress={handleExit}

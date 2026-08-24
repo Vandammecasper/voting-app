@@ -5,6 +5,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 
 export default function WelcomeScreen() {
@@ -67,7 +68,7 @@ export default function WelcomeScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       {ONBOARDINGIMAGE ? (
         <ImageBackground
           source={require('@/assets/images/mvpMockup.png')}
@@ -129,7 +130,7 @@ export default function WelcomeScreen() {
           </View>
         </Animated.View>
       </View>
-    </View>
+    </ThemedView>
   );
 }
 

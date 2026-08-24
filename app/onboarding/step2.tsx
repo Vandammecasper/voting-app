@@ -237,7 +237,7 @@ export default function OnboardingStep2() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <Animated.View style={[styles.content, fadeAnimatedStyle]}>
         <View style={styles.phoneContainer}>
           {!videoError && (

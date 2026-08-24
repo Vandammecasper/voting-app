@@ -2,7 +2,7 @@
   "expo": {
     "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -18,12 +18,16 @@
       },
       "appleTeamId": "579BFJXWX8"
     },
+    "androidStatusBar": {
+      "backgroundColor": "#292929",
+      "barStyle": "light-content",
+      "translucent": true
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#292929",
+      "barStyle": "light-content"
+    },
     "android": {
-      "androidStatusBar": {
-        "backgroundColor": "#292929",
-        "barStyle": "light-content",
-        "translucent": false
-      },
       "softwareKeyboardLayoutMode": "adjustResize",
       "adaptiveIcon": {
         "backgroundColor": "#292929",
@@ -31,7 +35,7 @@
         "backgroundImage": "./assets/images/logo.png",
         "monochromeImage": "./assets/images/logo.png"
       },
-      "edgeToEdgeEnabled": false,
+      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.caspervd.voting_app",
       "googleServicesFile": "./google-services.json"
@@ -69,8 +73,7 @@
             "targetSdkVersion": 36,
             "minSdkVersion": 24,
             "buildToolsVersion": "36.0.0"
-          },
-          "androidWindowSoftInputMode": "adjustResize"
+          }
         }
       ],
       "expo-web-browser"

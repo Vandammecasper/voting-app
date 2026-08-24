@@ -604,7 +604,7 @@ export default function WaitingRoomScreen() {
   }, [participantsData]);
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView safeAndroid style={styles.container}>
       <TouchableOpacity
         style={styles.exitButton}
         onPress={handleExitLobby}
