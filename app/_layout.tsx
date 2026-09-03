@@ -9,9 +9,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { applyRootBackground, rootStackScreenOptions, statusBarProps } from '@/constants/systemBars';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
+
+applyRootBackground();
 
 export const unstable_settings = {
   anchor: '(tabs)', // drawer navigation group
@@ -43,7 +46,7 @@ function RootLayoutNav() {
 
   return (
     <>
-      <Stack>
+      <Stack screenOptions={rootStackScreenOptions}>
         <Stack.Screen 
           name="onboarding" 
           options={{ 
@@ -90,7 +93,7 @@ function RootLayoutNav() {
           }} 
         />
       </Stack>
-      <StatusBar style="light" backgroundColor={Colors.background} />
+      <StatusBar {...statusBarProps} />
     </>
   );
 }
@@ -115,7 +118,7 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={styles.root}>
       <AuthProvider>
         <ThemeProvider value={AppTheme}>
           <RootLayoutNav />
@@ -126,6 +129,10 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
