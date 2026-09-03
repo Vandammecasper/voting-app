@@ -20,16 +20,6 @@ function read(relPath: string) {
   return fs.readFileSync(path.join(repoRoot, relPath), 'utf8');
 }
 
-function isFullyTransparent(color: string) {
-  const normalized = color.replace(/\s/g, '').toLowerCase();
-  return (
-    normalized === 'transparent' ||
-    normalized === '#0000' ||
-    normalized === '#00000000' ||
-    /^#([0-9a-f]{6}|[0-9a-f]{3})00$/.test(normalized)
-  );
-}
-
 describe('Android edge-to-edge system bars', () => {
   const appConfig = JSON.parse(read('app.json')) as {
     expo: {
@@ -44,22 +34,17 @@ describe('Android edge-to-edge system bars', () => {
     expect(appConfig.expo.android?.edgeToEdgeEnabled).toBe(true);
   });
 
-  it('uses the app background for the window behind transparent system bars', () => {
+  it('uses the app background for the window and Android system bars', () => {
     expect(appConfig.expo.backgroundColor).toBe(Colors.background);
     expect(rootBackgroundColor).toBe(Colors.background);
+    expect(appConfig.expo.androidStatusBar?.backgroundColor).toBe(Colors.background);
+    expect(appConfig.expo.androidNavigationBar?.backgroundColor).toBe(Colors.background);
   });
 
-  it('does not paint a solid Android status-bar color (shows up as a black bar)', () => {
-    const statusBarColor = appConfig.expo.androidStatusBar?.backgroundColor;
-    expect(statusBarColor).toBeDefined();
-    expect(isFullyTransparent(statusBarColor!)).toBe(true);
+  it('does not leave the Android status bar on the light splash theme', () => {
+    expect(appConfig.expo.androidStatusBar?.backgroundColor).not.toMatch(/00000000$/i);
+    expect(appConfig.expo.androidStatusBar?.backgroundColor?.toLowerCase()).not.toBe('#ffffff');
     expect(appConfig.expo.androidStatusBar?.translucent).not.toBe(true);
-  });
-
-  it('does not paint a solid Android navigation-bar color', () => {
-    const navigationBarColor = appConfig.expo.androidNavigationBar?.backgroundColor;
-    expect(navigationBarColor).toBeDefined();
-    expect(isFullyTransparent(navigationBarColor!)).toBe(true);
   });
 
   it('asks native screens to draw under the system bars', () => {
@@ -69,9 +54,10 @@ describe('Android edge-to-edge system bars', () => {
     expect(rootStackScreenOptions.contentStyle.backgroundColor).toBe(Colors.background);
   });
 
-  it('does not set a StatusBar backgroundColor', () => {
-    expect(statusBarProps).toEqual({ style: 'light', translucent: true });
+  it('does not set a JS StatusBar backgroundColor', () => {
+    expect(statusBarProps).toEqual({ style: 'light' });
     expect(statusBarProps).not.toHaveProperty('backgroundColor');
+    expect(statusBarProps).not.toHaveProperty('translucent');
   });
 
   it('applies the root window background through SystemUI', () => {
@@ -79,16 +65,20 @@ describe('Android edge-to-edge system bars', () => {
     expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalledWith(Colors.background);
   });
 
-  it('wires the system-bar config into the root layout', () => {
+  it('does not mount expo-status-bar on Android', () => {
     const layout = read('app/_layout.tsx');
     expect(layout).toContain('applyRootBackground()');
     expect(layout).toContain('screenOptions={rootStackScreenOptions}');
-    expect(layout).toContain('<StatusBar {...statusBarProps} />');
+    expect(layout).toContain("Platform.OS !== 'android' ? <StatusBar {...statusBarProps} />");
     expect(layout).not.toMatch(/<StatusBar[^>]*backgroundColor/);
   });
 
-  it('keeps MainActivity drawing edge-to-edge', () => {
+  it('applies AppTheme after splash and draws edge-to-edge afterward', () => {
     const plugin = read('app.plugin.js');
+    expect(plugin).toContain('setTheme(R.style.AppTheme)');
+    expect(plugin).toContain('After splash:');
     expect(plugin).toMatch(/setDecorFitsSystemWindows\(\$1,\s*false\)/);
+    expect(plugin).toContain("android:statusBarColor', '#292929'");
+    expect(plugin).toContain("android:enforceStatusBarContrast");
   });
 });

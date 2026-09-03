@@ -2,16 +2,15 @@ import * as SystemUI from 'expo-system-ui';
 
 import { Colors } from '@/constants/theme';
 
-/** Window / root color drawn behind the transparent Android system bars. */
+/** Window / root / Android system-bar color. Must match the app background. */
 export const rootBackgroundColor = Colors.background;
 
 /**
- * JS StatusBar props for edge-to-edge Android.
- * Do not set `backgroundColor` — it is ignored on Android 15+ and shows up as a black bar.
+ * iOS StatusBar props. Do not mount expo-status-bar on Android — it forces a
+ * transparent bar that falls back to the splash theme (a white strip).
  */
 export const statusBarProps = {
   style: 'light',
-  translucent: true,
 } as const;
 
 export const rootStackScreenOptions = {

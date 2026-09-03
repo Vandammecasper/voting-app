@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -93,7 +93,7 @@ function RootLayoutNav() {
           }} 
         />
       </Stack>
-      <StatusBar {...statusBarProps} />
+      {Platform.OS !== 'android' ? <StatusBar {...statusBarProps} /> : null}
     </>
   );
 }

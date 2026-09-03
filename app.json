@@ -21,11 +21,11 @@
     },
     "androidStatusBar": {
       "barStyle": "light-content",
-      "backgroundColor": "#00000000"
+      "backgroundColor": "#292929"
     },
     "androidNavigationBar": {
       "barStyle": "light-content",
-      "backgroundColor": "#00000000"
+      "backgroundColor": "#292929"
     },
     "android": {
       "softwareKeyboardLayoutMode": "adjustResize",

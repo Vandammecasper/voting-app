@@ -258,7 +258,7 @@ module.exports = function withVoipEntitlements(config) {
         }
 
         // Check if we already applied the fix
-        if (activityContent.includes('WindowInsetsController') && activityContent.includes('Android 16 compatibility')) {
+        if (activityContent.includes('WindowInsetsController') && activityContent.includes('After splash:')) {
           if (modified) {
             fs.writeFileSync(activityPath, activityContent, 'utf8');
           }
@@ -311,42 +311,40 @@ module.exports = function withVoipEntitlements(config) {
           modified = true;
         }
 
-        // Add Android 16 edge-to-edge compatibility code in onCreate
-        const onCreateRegex = isKotlin
-          ? /(override\s+fun\s+onCreate\s*\([^)]*\)\s*\{)/
-          : /(protected\s+void\s+onCreate\s*\([^)]*\)\s*\{)/;
+        // Add edge-to-edge after super.onCreate so splash cannot reset the window to a light status bar.
+        const superOnCreateRegex = isKotlin
+          ? /(super\.onCreate\([^)]*\)\s*\n)/
+          : /(super\.onCreate\([^)]*\);\s*\n)/;
 
-        if (onCreateRegex.test(activityContent) && !activityContent.includes('Android 16 compatibility')) {
+        if (superOnCreateRegex.test(activityContent) && !activityContent.includes('After splash:')) {
           const android15Fix = isKotlin
             ? `
-        // Android 16 compatibility: draw edge-to-edge; JS handles system-bar insets
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val window = this.window
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-            if (insetsController != null) {
-                // Use WindowInsetsController for status bar and navigation bar
-                insetsController.isAppearanceLightStatusBars = false
-                insetsController.isAppearanceLightNavigationBars = false
-            }
+    // After splash: draw edge-to-edge and keep status/nav icons light on the dark background.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val window = this.window
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        if (insetsController != null) {
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
         }
+    }
 `
             : `
-        // Android 16 compatibility: draw edge-to-edge; JS handles system-bar insets
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Window window = getWindow();
-            WindowCompat.setDecorFitsSystemWindows(window, false);
-            WindowInsetsController insetsController = WindowCompat.getInsetsController(window, window.getDecorView());
-            if (insetsController != null) {
-                // Use WindowInsetsController for status bar and navigation bar
-                insetsController.setAppearanceLightStatusBars(false);
-                insetsController.setAppearanceLightNavigationBars(false);
-            }
+    // After splash: draw edge-to-edge and keep status/nav icons light on the dark background.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Window window = getWindow();
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        WindowInsetsController insetsController = WindowCompat.getInsetsController(window, window.getDecorView());
+        if (insetsController != null) {
+            insetsController.setAppearanceLightStatusBars(false);
+            insetsController.setAppearanceLightNavigationBars(false);
         }
+    }
 `;
 
           activityContent = activityContent.replace(
-            onCreateRegex,
+            superOnCreateRegex,
             `$1${android15Fix}`
           );
           modified = true;
@@ -396,7 +394,8 @@ module.exports = function withVoipEntitlements(config) {
     },
   ]);
 
-  // Force NoActionBar on Android to prevent a native white toolbar.
+  // Force NoActionBar on Android to prevent a native white toolbar, and keep
+  // system bars on the dark app background instead of the light splash theme.
   config = withDangerousMod(config, [
     'android',
     async (config) => {
@@ -404,34 +403,59 @@ module.exports = function withVoipEntitlements(config) {
         path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res', 'values', 'styles.xml'),
         path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res', 'values-v31', 'styles.xml'),
       ];
+      const colorsPath = path.join(
+        config.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'res',
+        'values',
+        'colors.xml'
+      );
 
-      const ensureNoActionBarItems = (xml) => {
-        let updated = xml;
-
-        // Ensure these items are present inside the app theme.
-        if (!updated.includes('name="windowActionBar"')) {
-          updated = updated.replace(
-            /(<style[^>]*name="AppTheme"[^>]*>)/,
-            `$1\n    <item name="windowActionBar">false</item>`
-          );
+      const upsertItem = (xml, name, value, extraAttrs = '') => {
+        const itemRe = new RegExp(`<item name="${name}"[^>]*>[\\s\\S]*?<\\/item>`);
+        const item = extraAttrs
+          ? `<item name="${name}" ${extraAttrs}>${value}</item>`
+          : `<item name="${name}">${value}</item>`;
+        if (itemRe.test(xml)) {
+          return xml.replace(itemRe, item);
         }
-        if (!updated.includes('name="windowNoTitle"')) {
-          updated = updated.replace(
-            /(<style[^>]*name="AppTheme"[^>]*>)/,
-            `$1\n    <item name="windowNoTitle">true</item>`
-          );
-        }
-
-        return updated;
+        return xml.replace(
+          /(<style[^>]*name="AppTheme"[^>]*>)/,
+          `$1\n    ${item}`
+        );
       };
 
       for (const stylesPath of stylesPaths) {
         if (!fs.existsSync(stylesPath)) continue;
-        const stylesXml = fs.readFileSync(stylesPath, 'utf8');
-        const updatedXml = ensureNoActionBarItems(stylesXml);
-        if (updatedXml !== stylesXml) {
-          fs.writeFileSync(stylesPath, updatedXml, 'utf8');
-        }
+        let stylesXml = fs.readFileSync(stylesPath, 'utf8');
+        stylesXml = upsertItem(stylesXml, 'windowActionBar', 'false');
+        stylesXml = upsertItem(stylesXml, 'windowNoTitle', 'true');
+        stylesXml = upsertItem(stylesXml, 'android:statusBarColor', '#292929');
+        stylesXml = upsertItem(stylesXml, 'android:windowLightStatusBar', 'false', 'tools:targetApi="23"');
+        stylesXml = upsertItem(stylesXml, 'android:windowLightNavigationBar', 'false', 'tools:targetApi="27"');
+        stylesXml = upsertItem(
+          stylesXml,
+          'android:enforceStatusBarContrast',
+          'false',
+          'tools:targetApi="29"'
+        );
+        stylesXml = upsertItem(
+          stylesXml,
+          'android:enforceNavigationBarContrast',
+          'false',
+          'tools:targetApi="29"'
+        );
+        fs.writeFileSync(stylesPath, stylesXml, 'utf8');
+      }
+
+      if (fs.existsSync(colorsPath)) {
+        let colorsXml = fs.readFileSync(colorsPath, 'utf8');
+        colorsXml = colorsXml
+          .replace(/<color name="colorPrimaryDark">[^<]+<\/color>/, '<color name="colorPrimaryDark">#292929</color>')
+          .replace(/<color name="navigationBarColor">[^<]+<\/color>/, '<color name="navigationBarColor">#292929</color>');
+        fs.writeFileSync(colorsPath, colorsXml, 'utf8');
       }
 
       return config;
@@ -611,6 +635,54 @@ module.exports = function withVoipEntitlements(config) {
         fs.writeFileSync(activityPath, afterSuperKt, 'utf8');
       } else if (afterSuperJava !== activityContent) {
         fs.writeFileSync(activityPath, afterSuperJava, 'utf8');
+      }
+
+      return config;
+    },
+  ]);
+
+  // Keep AppTheme applied; Expo splash otherwise leaves a white status bar.
+  config = withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const packageName = config.android?.package || 'com.caspervd.voting_app';
+      const packagePath = packageName.replace(/\./g, '/');
+      const javaDir = path.join(
+        config.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'java',
+        packagePath
+      );
+
+      const findMainActivity = (dir) => {
+        if (!fs.existsSync(dir)) return null;
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            const found = findMainActivity(fullPath);
+            if (found) return found;
+          } else if (file.name === 'MainActivity.kt' || file.name === 'MainActivity.java') {
+            return fullPath;
+          }
+        }
+        return null;
+      };
+
+      const activityPath = findMainActivity(javaDir);
+      if (!activityPath || !fs.existsSync(activityPath)) {
+        return config;
+      }
+
+      const activityContent = fs.readFileSync(activityPath, 'utf8');
+      const uncommented = activityContent.replace(
+        /\/\/\s*setTheme\(R\.style\.AppTheme\);?/,
+        'setTheme(R.style.AppTheme)'
+      );
+      if (uncommented !== activityContent) {
+        fs.writeFileSync(activityPath, uncommented, 'utf8');
       }
 
       return config;
