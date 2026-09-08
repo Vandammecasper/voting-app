@@ -9,8 +9,10 @@ import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { isTeamLobby } from '@/services/teams';
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+const DATABASE_URL = getFirebaseDatabaseUrl();
 
 interface LobbyData {
   creatorId: string;
@@ -19,6 +21,8 @@ interface LobbyData {
   status: string;
   code: string;
   voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
+  teamName?: string;
+  teamMembers?: string[] | Record<string, string>;
 }
 
 interface VoteData {
@@ -331,13 +335,23 @@ export default function HistoryScreen() {
     // Navigate to appropriate screen based on vote status
     // Pass 'from=history' so we can navigate back here when done
     switch (status) {
-      case 'waiting':
-        // Rejoin the waiting room
+      case 'waiting': {
+        if (user && isTeamLobby(item.lobbyData)) {
+          const myVote = await readViaRest<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
+          if (myVote != null) {
+            router.push({
+              pathname: '/votingWaiting',
+              params: { voteId: item.lobbyId, from: 'history' },
+            });
+            break;
+          }
+        }
         router.push({
           pathname: '/waitingRoom',
           params: { voteId: item.lobbyId, from: 'history' },
         });
         break;
+      }
       case 'voting': {
         // Already voted → waiting screen with counts; not yet → voting form
         if (user) {

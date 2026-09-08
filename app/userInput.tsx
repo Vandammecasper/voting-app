@@ -1,22 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
-import { useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateLobbyCode } from '@/services/database';
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import {
+  claimedParticipantNames,
+  isTeamLobby,
+  listTeams,
+  MIN_TEAM_MEMBERS,
+  normalizeMemberList,
+  usableTeams,
+  UserTeamWithId,
+} from '@/services/teams';
 import { router, useLocalSearchParams } from 'expo-router';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+const DATABASE_URL = getFirebaseDatabaseUrl();
 
 type JoinableLobbyStatus = 'waiting' | 'voting';
 
 interface JoinableLobbyData {
   status: string;
   creatorId?: string;
+  teamName?: string;
+  teamMembers?: string[] | Record<string, string>;
 }
 
 interface ParticipantData {
@@ -131,7 +144,93 @@ export default function UserInputScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [voteType, setVoteType] = useState<'mvpAndLoser' | 'mvpOnly'>('mvpAndLoser');
+  const [useTeam, setUseTeam] = useState(false);
+  const [teams, setTeams] = useState<UserTeamWithId[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [joinLobby, setJoinLobby] = useState<JoinableLobbyData | null>(null);
+  const [joinTakenNames, setJoinTakenNames] = useState<string[]>([]);
   const { user } = useAuth();
+
+  const availableTeams = useMemo(() => usableTeams(teams), [teams]);
+  const selectedTeam = availableTeams.find((team) => team.id === selectedTeamId) ?? null;
+  const joinTeamMembers = normalizeMemberList(joinLobby?.teamMembers);
+  const isJoinTeamLobby = isJoinMode && isTeamLobby(joinLobby);
+
+  useEffect(() => {
+    if (isJoinMode || !user?.uid) return;
+
+    let cancelled = false;
+    listTeams(user.uid)
+      .then((next) => {
+        if (!cancelled) setTeams(next);
+      })
+      .catch(() => {
+        if (!cancelled) setTeams([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isJoinMode, user?.uid]);
+
+  useEffect(() => {
+    if (!isJoinMode) return;
+
+    const code = lobbyCode.trim();
+    if (code.length !== 6) {
+      setJoinLobby(null);
+      setJoinTakenNames([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function lookupLobby() {
+      const lobbyId = await readViaRest<string>(`lobbyCodes/${code}`);
+      if (cancelled) return;
+      if (!lobbyId) {
+        setJoinLobby(null);
+        setJoinTakenNames([]);
+        return;
+      }
+
+      const [lobbyData, participants] = await Promise.all([
+        readViaRest<JoinableLobbyData>(`lobbies/${lobbyId}`),
+        readViaRest<Record<string, ParticipantData>>(`participants/${lobbyId}`),
+      ]);
+      if (cancelled) return;
+
+      setJoinLobby(lobbyData);
+      const claimed = claimedParticipantNames(participants, user?.uid);
+      setJoinTakenNames([...claimed]);
+
+      if (isTeamLobby(lobbyData) && user?.uid) {
+        const existingName = participants?.[user.uid]?.name?.trim();
+        const members = normalizeMemberList(lobbyData?.teamMembers);
+        if (existingName && members.includes(existingName)) {
+          setName(existingName);
+        } else {
+          setName('');
+        }
+      }
+    }
+
+    lookupLobby();
+    return () => {
+      cancelled = true;
+    };
+    // name is intentionally omitted: lookup should not re-run when the user picks a name
+  }, [isJoinMode, lobbyCode, user?.uid]);
+
+  const handleToggleUseTeam = () => {
+    setUseTeam((current) => {
+      const next = !current;
+      if (!next) {
+        setSelectedTeamId('');
+      }
+      setName('');
+      return next;
+    });
+  };
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -143,7 +242,11 @@ export default function UserInputScreen() {
 
   const handleCreate = async () => {
     
-    if (!name.trim()) {
+    if (!useTeam && !name.trim()) {
+      return;
+    }
+
+    if (useTeam && (!selectedTeam || !name.trim())) {
       return;
     }
     
@@ -166,6 +269,12 @@ export default function UserInputScreen() {
         status: 'waiting',
         code,
         voteType, // 'mvpOnly' or 'mvpAndLoser'
+        ...(useTeam && selectedTeam
+          ? {
+              teamName: selectedTeam.name,
+              teamMembers: selectedTeam.members,
+            }
+          : {}),
       };
 
       const lobbyId = await pushViaRest('lobbies', lobbyData);
@@ -238,6 +347,22 @@ export default function UserInputScreen() {
         console.error('❌ Lobby is not accepting participants');
         Alert.alert('Error', 'This lobby is no longer accepting participants.');
         return;
+      }
+
+      if (isTeamLobby(lobbyData)) {
+        const members = normalizeMemberList(lobbyData.teamMembers);
+        if (!members.includes(name.trim())) {
+          Alert.alert('Error', 'Please pick your name from the team list.');
+          return;
+        }
+
+        const participants = await readViaRest<Record<string, ParticipantData>>(`participants/${lobbyId}`);
+        const claimed = claimedParticipantNames(participants, user.uid);
+        if (claimed.has(name.trim())) {
+          Alert.alert('Name taken', 'That name is already in use. Please pick another.');
+          setJoinTakenNames([...claimed]);
+          return;
+        }
       }
 
       const existingParticipant = await readViaRest<ParticipantData>(`participants/${lobbyId}/${user.uid}`);
@@ -315,27 +440,107 @@ export default function UserInputScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <Pressable style={styles.dismissKeyboard} onPress={Keyboard.dismiss}>
+          <ScrollView
+            style={styles.formScroll}
+            contentContainerStyle={styles.formScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {isJoinMode && (
-            <Text
-              style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginTop: 32, color: '#D9D9D9', fontFamily: defaultFontFamily }}
-            >
+            <Text style={styles.title}>
               Join a voting session
             </Text>
           )}
           {!isJoinMode && (
-            <Text
-              style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#D9D9D9', fontFamily: defaultFontFamily }}
-            >
-              What is your name?
+            <Text style={styles.title}>
+              {useTeam ? 'Create a voting session' : 'What is your name?'}
             </Text>
           )}
-          <TextInput 
-            style={styles.input} 
-            placeholder="Enter your name" 
-            placeholderTextColor={Colors.placeholder}
-            value={name}
-            onChangeText={setName}
-          />
+
+          {isJoinMode && (
+            <TextInput
+              style={styles.input}
+              placeholder="Enter lobby code"
+              placeholderTextColor={Colors.placeholder}
+              value={lobbyCode}
+              onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+          )}
+
+          {!isJoinMode && (
+            <Pressable style={styles.checkboxRow} onPress={handleToggleUseTeam}>
+              <Ionicons
+                name={useTeam ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={useTeam ? '#6E92FF' : Colors.icon}
+              />
+              <Text style={styles.checkboxLabel}>Use a team</Text>
+            </Pressable>
+          )}
+
+          {!isJoinMode && useTeam && (
+            <View style={styles.teamFields}>
+              {availableTeams.length === 0 ? (
+                <Text style={styles.teamHint}>
+                  Add a team with at least {MIN_TEAM_MEMBERS} members in Settings first.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.fieldLabel}>Team</Text>
+                  <View style={styles.dropdownWrapHigh}>
+                    <SelectDropdown
+                      value={selectedTeam?.name ?? ''}
+                      options={availableTeams.map((team) => team.name)}
+                      placeholder="Select a team"
+                      onSelect={(teamName) => {
+                        const team = availableTeams.find((item) => item.name === teamName);
+                        setSelectedTeamId(team?.id ?? '');
+                        setName('');
+                      }}
+                    />
+                  </View>
+                  <Text style={styles.fieldLabel}>Your name</Text>
+                  <View style={styles.dropdownWrap}>
+                    <SelectDropdown
+                      value={name}
+                      options={selectedTeam?.members ?? []}
+                      placeholder={selectedTeam ? 'Select your name' : 'Select a team first'}
+                      onSelect={setName}
+                      disabled={!selectedTeam}
+                    />
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+
+          {isJoinTeamLobby && (
+            <View style={styles.teamFields}>
+              <Text style={styles.fieldLabel}>Your name</Text>
+              <View style={styles.dropdownWrap}>
+                <SelectDropdown
+                  value={name}
+                  options={joinTeamMembers}
+                  placeholder="Select your name"
+                  onSelect={setName}
+                  disabledOptions={joinTakenNames}
+                />
+              </View>
+            </View>
+          )}
+
+          {(!isJoinMode && !useTeam) || (isJoinMode && !isJoinTeamLobby) ? (
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your name"
+              placeholderTextColor={Colors.placeholder}
+              value={name}
+              onChangeText={setName}
+            />
+          ) : null}
+
           {!isJoinMode && (
             <View style={styles.toggleContainer}>
               <Text style={styles.toggleLabel}>Vote type</Text>
@@ -359,25 +564,21 @@ export default function UserInputScreen() {
               </View>
             </View>
           )}
-          {isJoinMode && (
-              <TextInput 
-                style={styles.input} 
-                placeholder="Enter lobby code" 
-                placeholderTextColor={Colors.placeholder}
-                value={lobbyCode}
-                onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={6}
-              />
-          )}
           <View style={styles.buttonContainer}>
-            <PrimaryButton 
+            <PrimaryButton
               onPress={isJoinMode ? handleJoin : handleCreate}
-              disabled={isCreating || isJoining || !name.trim() || (isJoinMode && !lobbyCode.trim())}
+              disabled={
+                isCreating ||
+                isJoining ||
+                !name.trim() ||
+                (isJoinMode && !lobbyCode.trim()) ||
+                (!isJoinMode && useTeam && !selectedTeam)
+              }
             >
               {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
             </PrimaryButton>
           </View>
+          </ScrollView>
         </Pressable>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -393,9 +594,64 @@ const styles = StyleSheet.create({
   },
   dismissKeyboard: {
     flex: 1,
+  },
+  formScroll: {
+    flex: 1,
+  },
+  formScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 48,
+    paddingVertical: 80,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#D9D9D9',
+    fontFamily: defaultFontFamily,
+    marginBottom: 8,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  checkboxLabel: {
+    color: Colors.text,
+    fontSize: 16,
+    fontFamily: defaultFontFamily,
+  },
+  teamFields: {
+    width: '100%',
+    marginTop: 8,
+  },
+  teamHint: {
+    color: Colors.icon,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    fontFamily: defaultFontFamily,
+  },
+  fieldLabel: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 12,
+    marginBottom: 8,
+    fontFamily: defaultFontFamily,
+  },
+  dropdownWrapHigh: {
+    width: '100%',
+    zIndex: 30,
+  },
+  dropdownWrap: {
+    width: '100%',
+    zIndex: 20,
   },
   subtitle: {
     fontSize: 20,

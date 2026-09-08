@@ -19,8 +19,9 @@ import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+const DATABASE_URL = getFirebaseDatabaseUrl();
 
 // Read data via REST API (same pattern as userInput, history, waitingRoom, etc.)
 async function readViaRest<T>(path: string): Promise<T | null> {

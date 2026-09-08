@@ -1,0 +1,72 @@
+{
+  "rules": {
+    "appConfig": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "lobbies": {
+      ".indexOn": ["code"],
+      "$lobbyId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('creatorId').val() === auth.uid)"
+      }
+    },
+    "joinRequests": {
+      "$lobbyId": {
+        ".read": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
+        "$userId": {
+          ".read": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
+          ".write": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)"
+        }
+      }
+    },
+    "participants": {
+      "$lobbyId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
+        "$userId": {
+          ".write": "auth != null && auth.uid === $userId"
+        }
+      }
+    },
+    "votes": {
+      "$lobbyId": {
+        ".read": "auth != null && root.child('participants/' + $lobbyId + '/' + auth.uid).exists()",
+        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
+        "$userId": {
+          ".read": "auth != null && root.child('participants/' + $lobbyId + '/' + auth.uid).exists()",
+          ".write": "auth != null && auth.uid === $userId && !data.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))"
+        }
+      }
+    },
+    "lobbyCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "userHistory": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId"
+      }
+    },
+    "userTeams": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId"
+      }
+    },
+    "featureRequests": {
+      ".read": "auth != null",
+      "$requestId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)",
+        "likes": {
+          "$userId": {
+            ".write": "auth != null && $userId === auth.uid && root.child('featureRequests').child($requestId).child('userId').val() !== auth.uid"
+          }
+        }
+      }
+    }
+  }
+}

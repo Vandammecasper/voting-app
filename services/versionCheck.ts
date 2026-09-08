@@ -2,7 +2,9 @@ import auth from '@react-native-firebase/auth';
 import Constants from 'expo-constants';
 import { Linking, Platform } from 'react-native';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+
+const DATABASE_URL = getFirebaseDatabaseUrl();
 const ANDROID_PACKAGE = 'com.caspervd.voting_app';
 const LOG_PREFIX = '[VersionCheck]';
 

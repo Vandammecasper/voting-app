@@ -34,6 +34,20 @@ export default function SettingsLayout() {
           headerBackTitle: 'Back',
         }}
       />
+      <Stack.Screen
+        name="teams"
+        options={{
+          headerTitle: 'Teams',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
+        name="team-edit"
+        options={{
+          headerTitle: 'Team',
+          headerBackTitle: 'Back',
+        }}
+      />
     </Stack>
   );
 }

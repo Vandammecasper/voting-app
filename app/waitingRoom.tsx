@@ -8,10 +8,17 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import {
+  claimedParticipantNames,
+  isTeamLobby,
+  normalizeMemberList,
+} from '@/services/teams';
 import {
   hasVoteDraftContent,
   loadVoteDraft,
@@ -20,7 +27,7 @@ import {
   VoteDraftInput,
 } from '@/services/voteDraftStorage';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+const DATABASE_URL = getFirebaseDatabaseUrl();
 
 // Tracks that we've shown the "Name Change Requested" alert for a participant so it
 // isn't shown twice (e.g. from effect re-runs or Strict Mode remounts). Cleared when
@@ -254,6 +261,8 @@ interface LobbyData {
   status: string;
   code: string;
   voteType?: 'mvpOnly' | 'mvpAndLoser';
+  teamName?: string;
+  teamMembers?: string[] | Record<string, string>;
 }
 
 type ParticipantsData = Record<string, Participant>;
@@ -273,6 +282,7 @@ export default function WaitingRoomScreen() {
   const [isCopied, setIsCopied] = useState(false);
   const [showNameInputModal, setShowNameInputModal] = useState(false);
   const [newNameInput, setNewNameInput] = useState('');
+  const [selectedTeamName, setSelectedTeamName] = useState('');
   const [showDraftPanel, setShowDraftPanel] = useState(false);
   const [voteDraft, setVoteDraft] = useState<VoteDraftInput>(EMPTY_VOTE_DRAFT);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
@@ -305,6 +315,8 @@ export default function WaitingRoomScreen() {
 
   // Check if current user is the creator
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
+  const teamMode = isTeamLobby(lobbyData);
+  const teamMembers = normalizeMemberList(lobbyData?.teamMembers);
 
   useEffect(() => {
     let isMounted = true;
@@ -339,16 +351,64 @@ export default function WaitingRoomScreen() {
     };
   }, [voteId, user?.uid]);
 
-  // Navigate to voting screen when status changes to 'voting'
+  // Navigate when lobby status advances
   useEffect(() => {
-    if (lobbyData?.status === 'voting' && voteId && !hasNavigated.current) {
+    if (!lobbyData?.status || !voteId || hasNavigated.current) {
+      return;
+    }
+
+    if (lobbyData.status === 'voting') {
       hasNavigated.current = true;
       router.replace({
         pathname: '/voting',
         params: { voteId, from },
       });
+      return;
+    }
+
+    if (lobbyData.status === 'results') {
+      hasNavigated.current = true;
+      router.replace({
+        pathname: '/results',
+        params: { voteId, from },
+      });
+      return;
+    }
+
+    if (lobbyData.status === 'ranking' || lobbyData.status === 'completed') {
+      hasNavigated.current = true;
+      router.replace({
+        pathname: '/ranking',
+        params: { voteId, from },
+      });
     }
   }, [lobbyData?.status, voteId, from]);
+
+  // If this user already voted (team lobby rejoin), skip to the waiting-for-results screen
+  useEffect(() => {
+    if (!voteId || !user?.uid || hasNavigated.current) {
+      return;
+    }
+
+    let cancelled = false;
+    const userId = user.uid;
+    async function checkExistingVote() {
+      const existingVote = await readViaRest(`votes/${voteId}/${userId}`);
+      if (cancelled || hasNavigated.current || !existingVote) {
+        return;
+      }
+      hasNavigated.current = true;
+      router.replace({
+        pathname: '/votingWaiting',
+        params: { voteId, from },
+      });
+    }
+
+    checkExistingVote();
+    return () => {
+      cancelled = true;
+    };
+  }, [voteId, user?.uid, from]);
 
   // Track if user was previously in the lobby (to detect removal)
   const wasInLobby = useRef(false);
@@ -407,6 +467,7 @@ export default function WaitingRoomScreen() {
 
     shownNameChangePromptKeys.add(key);
     setNewNameInput(myData.name); // Pre-fill with current name
+    setSelectedTeamName('');
 
     Alert.alert(
       'Name Change Requested',
@@ -437,20 +498,34 @@ export default function WaitingRoomScreen() {
   const handleSubmitNewName = async () => {
     if (!user || !voteId) return;
 
-    if (!newNameInput || newNameInput.trim().length === 0) {
-      Alert.alert('Error', 'Please enter a valid name.');
+    const nextName = (teamMode ? selectedTeamName : newNameInput).trim();
+
+    if (!nextName) {
+      Alert.alert('Error', teamMode ? 'Please pick a name from the team list.' : 'Please enter a valid name.');
       return;
     }
 
     const currentName = (participantsData?.[user.uid]?.name ?? '').trim();
-    if (newNameInput.trim() === currentName) {
+    if (nextName === currentName) {
       Alert.alert('Error', 'Please enter a different name. The new name cannot be the same as your current name.');
       return;
+    }
+
+    if (teamMode) {
+      if (!teamMembers.includes(nextName)) {
+        Alert.alert('Error', 'Please pick a name from the team list.');
+        return;
+      }
+      const claimed = claimedParticipantNames(participantsData, user.uid);
+      if (claimed.has(nextName)) {
+        Alert.alert('Name taken', 'That name is already in use. Please pick another.');
+        return;
+      }
     }
     
     // Update name and clear the request flag
     const success = await updateViaRest(`participants/${voteId}/${user.uid}`, {
-      name: newNameInput.trim(),
+      name: nextName,
       nameChangeRequested: false,
     });
     
@@ -465,6 +540,7 @@ export default function WaitingRoomScreen() {
   // Handle canceling the name change modal
   const handleCancelNameChange = () => {
     setShowNameInputModal(false);
+    setSelectedTeamName('');
     if (voteId && user) shownNameChangePromptKeys.delete(`${voteId}-${user.uid}`);
   };
 
@@ -507,7 +583,17 @@ export default function WaitingRoomScreen() {
 
   // Handle start voting button
   const handleStartVoting = async () => {
-    if (!voteId || !isCreator) return;
+    if (!voteId) return;
+    if (!teamMode && !isCreator) return;
+
+    if (teamMode) {
+      hasNavigated.current = true;
+      router.replace({
+        pathname: '/voting',
+        params: { voteId, from },
+      });
+      return;
+    }
 
     setIsStarting(true);
     try {
@@ -594,6 +680,10 @@ export default function WaitingRoomScreen() {
   }, [lobbyData, participantsData]);
 
   const participantNames = React.useMemo(() => {
+    if (teamMode) {
+      return teamMembers;
+    }
+
     if (!participantsData) {
       return [];
     }
@@ -601,7 +691,7 @@ export default function WaitingRoomScreen() {
     return Object.values(participantsData)
       .filter((participant) => participant?.name)
       .map((participant) => participant.name);
-  }, [participantsData]);
+  }, [participantsData, teamMode, teamMembers]);
 
   return (
     <ThemedView safeAndroid style={styles.container}>
@@ -678,7 +768,7 @@ export default function WaitingRoomScreen() {
 
       <View style={styles.bottomSection}>
         <View style={styles.buttonContainer}>
-          {isCreator && (
+          {(teamMode || isCreator) && (
             <PrimaryButton 
               style={{ marginHorizontal: 24 }} 
               textStyle={{ fontSize: 24, fontWeight: 'bold' }} 
@@ -722,17 +812,36 @@ export default function WaitingRoomScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           >
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Enter New Name</Text>
-              <Text style={styles.modalSubtitle}>Please enter your new name:</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={newNameInput}
-                onChangeText={setNewNameInput}
-                placeholder="Your name"
-                placeholderTextColor={Colors.placeholder}
-                autoFocus
-                selectTextOnFocus
-              />
+              <Text style={styles.modalTitle}>
+                {teamMode ? 'Pick a new name' : 'Enter New Name'}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {teamMode ? 'Choose an unused name from the team list:' : 'Please enter your new name:'}
+              </Text>
+              {teamMode ? (
+                <View style={styles.modalDropdown}>
+                  <SelectDropdown
+                    value={selectedTeamName}
+                    options={teamMembers}
+                    placeholder="Select your name"
+                    onSelect={setSelectedTeamName}
+                    disabledOptions={[
+                      (participantsData?.[user?.uid ?? '']?.name ?? '').trim(),
+                      ...claimedParticipantNames(participantsData, user?.uid),
+                    ].filter(Boolean)}
+                  />
+                </View>
+              ) : (
+                <TextInput
+                  style={styles.modalInput}
+                  value={newNameInput}
+                  onChangeText={setNewNameInput}
+                  placeholder="Your name"
+                  placeholderTextColor={Colors.placeholder}
+                  autoFocus
+                  selectTextOnFocus
+                />
+              )}
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
                   style={styles.modalButtonCancel} 
@@ -880,6 +989,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: defaultFontFamily,
+  },
+  modalDropdown: {
+    width: '100%',
+    marginBottom: 20,
+    zIndex: 20,
   },
   modalInput: {
     backgroundColor: '#2A2A2A',

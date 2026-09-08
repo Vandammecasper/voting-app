@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Href, router } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
@@ -58,6 +58,11 @@ export default function SettingsScreen() {
     <ThemedView style={styles.container}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.buttons}>
+        <SettingsButton
+          icon="people-outline"
+          label="Teams"
+          onPress={() => router.push('/(tabs)/settings/teams' as Href)}
+        />
         <SettingsButton
           icon="bulb-outline"
           label="Feature request"

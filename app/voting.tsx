@@ -6,9 +6,7 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,16 +14,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeMemberList } from '@/services/teams';
+import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
 
-const DATABASE_URL = process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL;
+const DATABASE_URL = getFirebaseDatabaseUrl();
 
 interface Participant {
   name: string;
@@ -42,6 +42,8 @@ interface LobbyData {
   status: string;
   code: string;
   voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
+  teamName?: string;
+  teamMembers?: string[] | Record<string, string>;
 }
 
 // Helper to read data using REST API
@@ -96,147 +98,6 @@ async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
     console.error(`❌ REST write error:`, error);
     return false;
   }
-}
-
-// Animated Chevron Icon component
-const AnimatedIonicons = Animated.createAnimatedComponent(Ionicons);
-
-function AnimatedChevron({ isOpen }: { isOpen: boolean }) {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    rotation.value = withTiming(isOpen ? 180 : 0, { duration: 200 });
-  }, [isOpen, rotation]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  return (
-    <AnimatedIonicons 
-      name="chevron-down" 
-      size={20} 
-      color={Colors.icon} 
-      style={animatedStyle}
-    />
-  );
-}
-
-// Dropdown component with inline expanding list
-interface DropdownProps {
-  value: string;
-  options: string[];
-  placeholder: string;
-  onSelect: (value: string) => void;
-  onOpenChange?: (isOpen: boolean) => void;
-}
-
-function Dropdown({ value, options, placeholder, onSelect, onOpenChange }: DropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    onOpenChange?.(isOpen);
-  }, [isOpen, onOpenChange]);
-
-  useEffect(() => {
-    return () => {
-      onOpenChange?.(false);
-    };
-  }, [onOpenChange]);
-
-  return (
-    <View style={styles.dropdownContainer}>
-      <Pressable 
-        style={[styles.dropdown, isOpen && styles.dropdownOpen]} 
-        onPress={() => setIsOpen(!isOpen)}
-      >
-        <Text style={[styles.dropdownText, !value && styles.dropdownPlaceholder]}>
-          {value || placeholder}
-        </Text>
-        <AnimatedChevron isOpen={isOpen} />
-      </Pressable>
-
-      {isOpen && Platform.OS !== 'android' && (
-        <View style={styles.dropdownList}>
-          <ScrollView
-            style={styles.dropdownScroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
-            {options.map((option) => (
-              <Pressable
-                key={option}
-                style={[
-                  styles.dropdownItem,
-                  value === option && styles.dropdownItemSelected,
-                ]}
-                onPress={() => {
-                  onSelect(option);
-                  setIsOpen(false);
-                }}
-              >
-                <Text style={[
-                  styles.dropdownItemText,
-                  value === option && styles.dropdownItemTextSelected,
-                ]}>
-                  {option}
-                </Text>
-                {value === option && (
-                  <Ionicons name="checkmark" size={18} color="#6E92FF" />
-                )}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {Platform.OS === 'android' && (
-        <Modal
-          visible={isOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setIsOpen(false)}
-        >
-          <View style={styles.dropdownModalOverlay}>
-            <Pressable style={styles.dropdownModalBackdrop} onPress={() => setIsOpen(false)} />
-            <View style={styles.dropdownModalCard}>
-              <ScrollView
-                style={styles.dropdownModalScroll}
-                showsVerticalScrollIndicator
-                keyboardShouldPersistTaps="handled"
-                bounces={false}
-              >
-                {options.map((option) => (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.dropdownItem,
-                      value === option && styles.dropdownItemSelected,
-                    ]}
-                    onPress={() => {
-                      onSelect(option);
-                      setIsOpen(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.dropdownItemText,
-                      value === option && styles.dropdownItemTextSelected,
-                    ]}>
-                      {option}
-                    </Text>
-                    {value === option && (
-                      <Ionicons name="checkmark" size={18} color="#6E92FF" />
-                    )}
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-      )}
-    </View>
-  );
 }
 
 export default function VotingScreen() {
@@ -319,14 +180,18 @@ export default function VotingScreen() {
     async function fetchData() {
       if (!voteId) return;
       
-      const participants = await readViaRest<ParticipantsData>(`participants/${voteId}`);
-      if (participants) {
-        const names = Object.values(participants).map(p => p.name);
-        setParticipantNames(names);
+      const lobbyData = await readViaRest<LobbyData>(`lobbies/${voteId}`);
+      const teamNames = normalizeMemberList(lobbyData?.teamMembers);
+      if (teamNames.length > 0) {
+        setParticipantNames(teamNames);
+      } else {
+        const participants = await readViaRest<ParticipantsData>(`participants/${voteId}`);
+        if (participants) {
+          const names = Object.values(participants).map(p => p.name);
+          setParticipantNames(names);
+        }
       }
       
-      // Fetch lobby data to get vote type
-      const lobbyData = await readViaRest<LobbyData>(`lobbies/${voteId}`);
       if (lobbyData?.voteType) {
         setVoteType(lobbyData.voteType);
       }
@@ -472,7 +337,7 @@ export default function VotingScreen() {
 
         {/* MVP Section */}
         <Text style={styles.sectionLabel}>Your MVP of the match</Text>
-        <Dropdown
+        <SelectDropdown
           value={mvpName}
           options={participantNames}
           placeholder="Select the match MVP"
@@ -511,7 +376,7 @@ export default function VotingScreen() {
         {voteType === 'mvpAndLoser' && (
           <>
             <Text style={styles.sectionLabel}>Your loser of the match</Text>
-            <Dropdown
+            <SelectDropdown
               value={loserName}
               options={participantNames}
               placeholder="Select the match loser"
@@ -627,100 +492,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
-  },
-  // Dropdown styles
-  dropdownContainer: {
-    position: 'relative',
-    zIndex: 10,
-  },
-  dropdown: {
-    width: '100%',
-    height: 48,
-    backgroundColor: '#3a3a3a',
-    borderRadius: 8,
-    borderColor: Colors.icon,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dropdownOpen: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  dropdownText: {
-    color: Colors.text,
-    fontSize: 16,
-    flex: 1,
-    fontFamily: defaultFontFamily,
-  },
-  dropdownPlaceholder: {
-    color: Colors.placeholder,
-    fontFamily: defaultFontFamily,
-  },
-  dropdownList: {
-    position: 'absolute',
-    top: 48,
-    left: 0,
-    right: 0,
-    maxHeight: 180,
-    backgroundColor: '#3a3a3a',
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#4a4a4a',
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  /** Explicit height so the dropdown has a real viewport on Android. */
-  dropdownListAndroid: {
-    height: 180,
-  },
-  dropdownScroll: {
-    flex: 1,
-  },
-  dropdownModalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  dropdownModalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
-  dropdownModalCard: {
-    maxHeight: '60%',
-    backgroundColor: '#3a3a3a',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4a4a4a',
-    overflow: 'hidden',
-  },
-  dropdownModalScroll: {
-    maxHeight: 360,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  dropdownItemSelected: {
-    backgroundColor: 'rgba(110, 146, 255, 0.1)',
-  },
-  dropdownItemText: {
-    color: Colors.text,
-    fontSize: 16,
-  },
-  dropdownItemTextSelected: {
-    color: '#6E92FF',
-    fontWeight: '500',
   },
   exitButton: {
     position: 'absolute',
