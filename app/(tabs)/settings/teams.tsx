@@ -3,7 +3,6 @@ import { Href, router } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
+import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -101,10 +101,12 @@ export default function TeamsScreen() {
         ) : (
           <View style={styles.list}>
             {teams.map((team) => (
-              <Pressable
+              <PressableScale
                 key={team.id}
                 onPress={() => openEdit(team.id)}
-                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                style={styles.card}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit team ${team.name}`}
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle} numberOfLines={1}>
@@ -123,7 +125,7 @@ export default function TeamsScreen() {
                     ? ` · add ${MIN_TEAM_MEMBERS - team.members.length} more to use in a vote`
                     : ''}
                 </Text>
-              </Pressable>
+              </PressableScale>
             ))}
           </View>
         )}
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 136,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   scrollContentCentered: {
@@ -184,9 +186,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a3a3a',
     borderRadius: 12,
     padding: 16,
-  },
-  cardPressed: {
-    opacity: 0.8,
   },
   cardHeader: {
     flexDirection: 'row',

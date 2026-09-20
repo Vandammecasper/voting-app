@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
+import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
@@ -281,7 +282,7 @@ export default function UserInputScreen() {
       
       if (!lobbyId) {
         console.error('❌ Failed to create lobby');
-        Alert.alert('Error', 'Failed to create lobby. Please try again.');
+        Alert.alert("Couldn't create lobby", 'Please try again.');
         return;
       }
 
@@ -299,15 +300,13 @@ export default function UserInputScreen() {
         joinedAt: Date.now(),
       });
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       router.push({
         pathname: '/waitingRoom',
         params: { voteId: lobbyId },
       });
     } catch (error) {
       console.error('❌ Error creating vote:', error);
-      Alert.alert('Error', 'Failed to create lobby. Please try again.');
+      Alert.alert("Couldn't create lobby", 'Please try again.');
     } finally {
       setIsCreating(false);
     }
@@ -331,7 +330,7 @@ export default function UserInputScreen() {
 
       if (!lobbyId) {
         console.error('❌ No lobby found with this code');
-        Alert.alert('Error', 'Lobby not found. Please check the code and try again.');
+        Alert.alert("Couldn't find lobby", 'Check the code and try again.');
         return;
       }
 
@@ -339,20 +338,20 @@ export default function UserInputScreen() {
 
       if (!lobbyData) {
         console.error('❌ Lobby data not found');
-        Alert.alert('Error', 'Lobby not found. Please try again.');
+        Alert.alert("Couldn't find lobby", 'Please try again.');
         return;
       }
 
       if (!isJoinableLobbyStatus(lobbyData.status)) {
         console.error('❌ Lobby is not accepting participants');
-        Alert.alert('Error', 'This lobby is no longer accepting participants.');
+        Alert.alert("Can't join this lobby", 'This lobby is no longer accepting participants.');
         return;
       }
 
       if (isTeamLobby(lobbyData)) {
         const members = normalizeMemberList(lobbyData.teamMembers);
         if (!members.includes(name.trim())) {
-          Alert.alert('Error', 'Please pick your name from the team list.');
+          Alert.alert('Pick a team name', 'Please pick your name from the team list.');
           return;
         }
 
@@ -378,7 +377,7 @@ export default function UserInputScreen() {
       
       if (!writeSuccess) {
         console.error('❌ Failed to add participant');
-        Alert.alert('Error', 'Failed to join the lobby. Please try again.');
+        Alert.alert("Couldn't join lobby", 'Please try again.');
         return;
       }
       
@@ -387,8 +386,6 @@ export default function UserInputScreen() {
         lobbyId,
         joinedAt: Date.now(),
       });
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
 
       if (lobbyData.status === 'voting') {
         const existingVote = await readViaRest(`votes/${lobbyId}/${user.uid}`);
@@ -413,7 +410,7 @@ export default function UserInputScreen() {
       });
     } catch (error) {
       console.error('❌ Error joining vote:', error);
-      Alert.alert('Error', 'Failed to join the lobby. Please try again.');
+      Alert.alert("Couldn't join lobby", 'Please try again.');
     } finally {
       setIsJoining(false);
     }
@@ -421,19 +418,7 @@ export default function UserInputScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
-        {Platform.OS === 'ios' ? (
-          <View style={styles.backButtonIosContent}>
-            <Ionicons name="chevron-back" size={22} color={Colors.text} />
-            <Text style={styles.backButtonIosText}>Back</Text>
-          </View>
-        ) : (
-          <View style={styles.backButtonAndroidContent}>
-            <Ionicons name="chevron-back" size={20} color={Colors.icon} />
-            <Text style={styles.backButtonText}>Back</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <ScreenBackButton onPress={handleBack} />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -470,7 +455,13 @@ export default function UserInputScreen() {
           )}
 
           {!isJoinMode && (
-            <Pressable style={styles.checkboxRow} onPress={handleToggleUseTeam}>
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={handleToggleUseTeam}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: useTeam }}
+              accessibilityLabel="Use a team"
+            >
               <Ionicons
                 name={useTeam ? 'checkbox' : 'square-outline'}
                 size={22}
@@ -575,7 +566,7 @@ export default function UserInputScreen() {
                 (!isJoinMode && useTeam && !selectedTeam)
               }
             >
-              {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'join' : 'create')}
+              {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'Join' : 'Create')}
             </PrimaryButton>
           </View>
           </ScrollView>
@@ -716,33 +707,5 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     color: '#6E92FF',
     fontWeight: '600',
-  },
-  backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 24,
-    left: 12,
-    zIndex: 100,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  backButtonText: {
-    color: Colors.icon,
-    fontSize: 18,
-    fontFamily: defaultFontFamily,
-  },
-  backButtonIosContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  backButtonIosText: {
-    color: Colors.text,
-    fontSize: 17,
-    fontWeight: '400',
-  },
-  backButtonAndroidContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
   },
 });

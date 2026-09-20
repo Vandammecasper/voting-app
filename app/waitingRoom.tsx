@@ -8,11 +8,13 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
+import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 import {
   claimedParticipantNames,
@@ -158,13 +160,20 @@ const LOADER_GRADIENT = ['#A78BFA', '#6E92FF', '#90FF91'] as const;
 // Bouncing dots loader in app gradient style
 // Sequence: 1 → 2 → 3 → (brief gap) → 1 → … (no 3→2→1)
 function WaitingLoader() {
+  const reduceMotion = useReducedMotion();
   const d = 280;
-  const gap = 100; // all dim before jumping back to 1
-  const dot1 = useSharedValue(0.45);
-  const dot2 = useSharedValue(0.45);
-  const dot3 = useSharedValue(0.45);
+  const gap = 100;
+  const dot1 = useSharedValue(reduceMotion ? 1 : 0.45);
+  const dot2 = useSharedValue(reduceMotion ? 1 : 0.45);
+  const dot3 = useSharedValue(reduceMotion ? 1 : 0.45);
 
   useEffect(() => {
+    if (reduceMotion) {
+      dot1.value = 1;
+      dot2.value = 1;
+      dot3.value = 1;
+      return;
+    }
     dot1.value = withRepeat(
       withSequence(
         withTiming(1, { duration: d }),
@@ -192,7 +201,7 @@ function WaitingLoader() {
       ),
       -1,
     );
-  }, []);
+  }, [dot1, dot2, dot3, reduceMotion]);
 
   const style1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
   const style2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
@@ -695,13 +704,7 @@ export default function WaitingRoomScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <TouchableOpacity
-        style={styles.exitButton}
-        onPress={handleExitLobby}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
-      </TouchableOpacity>
+      <ScreenBackButton onPress={handleExitLobby} />
 
       <View style={styles.topSection}>
         <SecondaryButton style={{ marginHorizontal: 56 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={handleCopyCode}>

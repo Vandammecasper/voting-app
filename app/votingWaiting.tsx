@@ -1,15 +1,15 @@
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { ScreenBackButton } from '@/components/screen-back-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-import { Ionicons } from '@expo/vector-icons';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
 
@@ -184,13 +184,7 @@ export default function VotingWaitingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <TouchableOpacity 
-        style={styles.exitButton}
-        onPress={handleExit}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
-      </TouchableOpacity>
+      <ScreenBackButton onPress={handleExit} />
       {everyoneHasVoted ? (
         <>
           <View style={styles.content}>

@@ -1,79 +1,52 @@
 import { Ionicons } from '@expo/vector-icons';
-import { DrawerToggleButton } from '@react-navigation/drawer';
-import { Drawer } from 'expo-router/drawer';
+import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 
-const androidHeaderOptions =
-  Platform.OS === 'android'
-    ? {
-        headerTransparent: false,
-        headerStyle: { backgroundColor: Colors.background },
-      }
-    : {
-        headerTransparent: true,
-      };
-
-export default function DrawerLayout() {
-  const insets = useSafeAreaInsets();
-
+export default function TabLayout() {
   return (
-    <Drawer
+    <Tabs
       screenOptions={{
-        drawerActiveTintColor: Colors.tint,
-        drawerInactiveTintColor: Colors.icon,
-        drawerStyle: {
-          backgroundColor: Colors.background,
+        headerShown: false,
+        tabBarActiveTintColor: Colors.tint,
+        tabBarInactiveTintColor: Colors.icon,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
-        sceneContainerStyle: {
+        tabBarStyle: {
           backgroundColor: Colors.background,
-          ...(Platform.OS === 'android' ? { paddingBottom: insets.bottom } : null),
+          borderTopColor: '#3a3a3a',
+          borderTopWidth: 1,
         },
-        ...androidHeaderOptions,
-        headerShadowVisible: false,
-        headerTitle: () => null,
-        headerTintColor: Colors.text,
-        headerShown: true,
-        headerLeft: () => <DrawerToggleButton tintColor={Colors.text} />,
-      }}>
-      <Drawer.Screen
+      }}
+    >
+      <Tabs.Screen
         name="index"
         options={{
-          headerTitle: () => null,
-          drawerLabel: 'Home',
-          drawerIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
+          title: 'Home',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
+          tabBarAccessibilityLabel: 'Home',
         }}
       />
-      <Drawer.Screen
+      <Tabs.Screen
         name="history"
         options={{
-          headerTitle: () => null,
-          drawerLabel: 'My Votes',
-          drawerIcon: ({ color }) => <Ionicons size={24} name="time-outline" color={color} />,
+          title: 'My Votes',
+          tabBarIcon: ({ color }) => <Ionicons size={24} name="time-outline" color={color} />,
+          tabBarAccessibilityLabel: 'My Votes',
         }}
       />
-      <Drawer.Screen
+      <Tabs.Screen
         name="settings"
-        options={({ navigation }) => {
-          const state = navigation.getState();
-          const settingsRoute = state?.routes?.find((r) => r.name === 'settings');
-          const nestedState = settingsRoute?.state as { routes: { name: string }[]; index: number } | undefined;
-          const activeSettingsRouteName = nestedState?.routes?.[nestedState.index]?.name;
-          const isNestedScreen = activeSettingsRouteName != null && activeSettingsRouteName !== 'index';
-          return {
-            headerTitle: () => null,
-            drawerLabel: 'Settings',
-            drawerIcon: ({ color }) => <Ionicons size={24} name="settings-outline" color={color} />,
-            // When navigating inside Settings stack, hide the drawer header
-            // so we only show the Stack header/back button.
-            headerShown: !isNestedScreen,
-          };
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <Ionicons size={24} name="settings-outline" color={color} />,
+          tabBarAccessibilityLabel: 'Settings',
         }}
       />
-    </Drawer>
+    </Tabs>
   );
 }

@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GradientText } from '@/components/gradient-text';
+import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -172,14 +174,15 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
   };
   
   return (
-    <Pressable 
-      style={({ pressed }) => [
+    <PressableScale 
+      style={[
         styles.card, 
-        pressed && styles.cardPressed,
         isDeleting && styles.cardDeleting,
       ]}
       onPress={onPress}
       disabled={isDeleting}
+      accessibilityRole="button"
+      accessibilityLabel={`Vote from ${formatDate(item.participatedAt)}`}
     >
       {isDeleting && (
         <View style={styles.deletingOverlay}>
@@ -198,6 +201,8 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
                 handleDelete();
               }}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Delete vote"
             >
               <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
             </Pressable>
@@ -247,12 +252,13 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
           <Ionicons name="chevron-forward" size={20} color={Colors.icon} />
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 export default function HistoryScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -437,7 +443,7 @@ export default function HistoryScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={Colors.tint} />
           <Text style={styles.loadingText}>Loading your votes...</Text>
@@ -447,8 +453,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      {/* Updated Toast */}
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       {showUpdatedToast && (
         <Animated.View 
           entering={FadeIn.duration(200)} 
@@ -539,7 +544,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 0 : 80,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   centerContent: {
@@ -559,6 +564,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
     fontFamily: defaultFontFamily,
+    letterSpacing: -0.6,
   },
   emptyState: {
     alignItems: 'center',
@@ -588,9 +594,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-  },
-  cardPressed: {
-    opacity: 0.8,
   },
   cardDeleting: {
     opacity: 0.7,

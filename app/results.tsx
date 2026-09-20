@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { ScreenBackButton } from '@/components/screen-back-button';
+import { SwipePager } from '@/components/swipe-pager';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -124,6 +126,8 @@ function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
 export default function ResultsScreen() {
   const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
+  const pageWidth = windowWidth - 48;
   
   const [votesData, setVotesData] = useState<VotesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -165,7 +169,6 @@ export default function ResultsScreen() {
   }, [votesData]);
 
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
-  const currentVote = votesArray[currentVoteIndex];
   const totalVotes = votesArray.length;
   const hasPreviousVote = currentVoteIndex > 0;
   const hasNextVote = currentVoteIndex < totalVotes - 1;
@@ -208,6 +211,7 @@ export default function ResultsScreen() {
   if (!isCreator) {
     return (
       <ThemedView safeAndroid style={styles.container}>
+        <ScreenBackButton onPress={() => router.replace('/')} />
         <View style={styles.centerContent}>
           <Ionicons name="megaphone-outline" size={64} color={Colors.icon} />
           <GradientText 
@@ -215,7 +219,7 @@ export default function ResultsScreen() {
             style={styles.waitingTitle}
           />
           <Text style={styles.waitingSubtitle}>
-            The host is reading the voting results to the group
+            The host is reading the voting results to the group. You can go back if you need to leave.
           </Text>
         </View>
       </ThemedView>
@@ -229,17 +233,12 @@ export default function ResultsScreen() {
   // Creator view - show individual votes
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <TouchableOpacity 
-        style={styles.exitButton}
-        onPress={handleExit}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
-      </TouchableOpacity>
+      <ScreenBackButton onPress={handleExit} />
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
         
         <GradientText 
@@ -249,31 +248,34 @@ export default function ResultsScreen() {
         
         <Text style={styles.pageTitle}>Voting results</Text>
 
-        {/* Vote Counter */}
         <Text style={styles.voteCounter}>
           Vote {currentVoteIndex + 1} of {totalVotes}
         </Text>
 
-        {/* Results Card */}
-        {currentVote ? (
-          <View style={styles.resultsCard}>
-            {/* MVP Section */}
-            <View style={styles.resultSection}>
-              <Text style={styles.resultLabel}>MVP: {currentVote.mvpName.toUpperCase()}</Text>
-              <Text style={styles.resultComment}>{currentVote.mvpComment}</Text>
-            </View>
-
-            {/* Loser Section - only show if loser data exists */}
-            {currentVote.loserName && currentVote.loserComment && (
-              <>
-                <View style={styles.divider} />
+        {votesArray.length > 0 ? (
+          <SwipePager
+            index={currentVoteIndex}
+            onIndexChange={setCurrentVoteIndex}
+            pageWidth={pageWidth}
+          >
+            {votesArray.map((vote, voteIndex) => (
+              <View key={voteIndex} style={styles.resultsCard}>
                 <View style={styles.resultSection}>
-                  <Text style={styles.resultLabel}>Loser: {currentVote.loserName.toUpperCase()}</Text>
-                  <Text style={styles.resultComment}>{currentVote.loserComment}</Text>
+                  <Text style={styles.resultLabel}>MVP: {vote.mvpName.toUpperCase()}</Text>
+                  <Text style={styles.resultComment}>{vote.mvpComment}</Text>
                 </View>
-              </>
-            )}
-          </View>
+                {vote.loserName && vote.loserComment && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.resultSection}>
+                      <Text style={styles.resultLabel}>Loser: {vote.loserName.toUpperCase()}</Text>
+                      <Text style={styles.resultComment}>{vote.loserComment}</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            ))}
+          </SwipePager>
         ) : (
           <View style={styles.resultsCard}>
             <Text style={styles.noVotesText}>No votes submitted yet</Text>
@@ -373,6 +375,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     fontFamily: defaultFontFamily,
+    letterSpacing: -1,
+    lineHeight: 54,
   },
   pageTitle: {
     color: Colors.text,

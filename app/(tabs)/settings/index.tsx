@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, router } from 'expo-router';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 
@@ -42,20 +44,26 @@ interface SettingsButtonProps {
 
 function SettingsButton({ icon, label, onPress }: SettingsButtonProps) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.button}
     >
-      <Ionicons name={icon} size={24} color={Colors.icon} style={styles.icon} />
-      <Text style={styles.buttonLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={20} color={Colors.icon} />
-    </Pressable>
+      <View style={styles.buttonInner}>
+        <Ionicons name={icon} size={24} color={Colors.icon} style={styles.icon} />
+        <Text style={styles.buttonLabel}>{label}</Text>
+        <Ionicons name="chevron-forward" size={20} color={Colors.icon} />
+      </View>
+    </PressableScale>
   );
 }
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.buttons}>
         <SettingsButton
@@ -97,7 +105,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 64,
   },
   title: {
     fontSize: 28,
@@ -106,20 +113,21 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
     marginBottom: 32,
     textAlign: 'center',
+    letterSpacing: -0.4,
+    lineHeight: 34,
   },
   buttons: {
     gap: 8,
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#363636',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     borderRadius: 12,
   },
-  buttonPressed: {
-    opacity: 0.8,
+  buttonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   icon: {
     marginRight: 14,

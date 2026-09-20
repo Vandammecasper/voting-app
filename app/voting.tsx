@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -11,12 +10,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
@@ -300,13 +299,7 @@ export default function VotingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <TouchableOpacity 
-        style={styles.exitButton}
-        onPress={handleExit}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="close" size={28} color={Colors.icon} style={{ opacity: 0.5 }} />
-      </TouchableOpacity>
+      <ScreenBackButton onPress={handleExit} />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

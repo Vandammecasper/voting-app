@@ -1,20 +1,22 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
+import { UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export default function WelcomeScreen() {
   const [imageHeight, setImageHeight] = useState<number | null>(null);
   const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
   const cardTranslateY = useSharedValue(0);
   const cardHeight = useSharedValue(380);
   const overlayHeight = useSharedValue(120);
+  const reduceMotion = useReducedMotion();
   const ONBOARDINGIMAGE = false;
 
   useEffect(() => {
@@ -27,31 +29,22 @@ export default function WelcomeScreen() {
     }
   }, [screenWidth]);
 
-  // Reset animation when screen comes back into focus
   useFocusEffect(
     useCallback(() => {
-      // Animate back to initial state when returning to this screen
-      cardHeight.value = withTiming(380, { duration: 400 });
-      overlayHeight.value = withTiming(120, { duration: 400 });
-      cardTranslateY.value = withTiming(0, { duration: 400 });
-    }, [])
+      if (reduceMotion) {
+        cardHeight.value = withTiming(380, { duration: 200 });
+        overlayHeight.value = withTiming(120, { duration: 200 });
+        cardTranslateY.value = withTiming(0, { duration: 200 });
+        return;
+      }
+      cardHeight.value = withSpring(380, UI_SPRING);
+      overlayHeight.value = withSpring(120, UI_SPRING);
+      cardTranslateY.value = withSpring(0, UI_SPRING);
+    }, [cardHeight, cardTranslateY, overlayHeight, reduceMotion])
   );
 
-  const navigateToStep2 = () => {
-    router.push('/onboarding/step2');
-  };
-
   const handleContinue = () => {
-    console.log('Continue button pressed');
-    // Expand card to full screen height and slide up
-    cardHeight.value = withTiming(screenHeight, { duration: 400 });
-    overlayHeight.value = withTiming(screenHeight, { duration: 400 });
-    cardTranslateY.value = withTiming(-screenHeight, {
-      duration: 400,
-    }, () => {
-      // Navigate after animation completes
-      runOnJS(navigateToStep2)();
-    });
+    router.push('/onboarding/step2');
   };
 
   const cardAnimatedStyle = useAnimatedStyle(() => {
@@ -192,6 +185,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
     textAlign: 'center',
+    letterSpacing: -0.6,
+    lineHeight: 42,
   },
   titlePart2: {
     fontSize: 36,

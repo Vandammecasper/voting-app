@@ -9,16 +9,18 @@ import { defaultFontFamily } from '@/constants/theme';
 export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
-      <GradientText 
-        text="MVP" 
-        style={{ fontSize: 100, fontWeight: 'bold' }}
-      />
+      <View style={styles.hero}>
+        <GradientText
+          text="MVP"
+          style={styles.display}
+        />
+      </View>
       <Text style={styles.subtitle}>
         Who is the most valuable player on your team?
       </Text>
       <View style={styles.buttonContainer}>
-        <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>create vote</PrimaryButton>
-        <SecondaryButton onPress={() => {router.push('/userInput?mode=join')}}>join vote</SecondaryButton>
+        <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>Create vote</PrimaryButton>
+        <SecondaryButton onPress={() => {router.push('/userInput?mode=join')}}>Join vote</SecondaryButton>
       </View>
     </ThemedView>
   );
@@ -27,16 +29,28 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 48,
+    paddingBottom: 32,
+  },
+  hero: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  display: {
+    fontSize: 100,
+    fontWeight: 'bold',
+    letterSpacing: -2,
+    lineHeight: 108,
   },
   subtitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '500',
     textAlign: 'center',
     color: '#6E92FF',
-    marginTop: 200,
+    letterSpacing: -0.3,
+    lineHeight: 26,
     fontFamily: defaultFontFamily,
   },
   buttonContainer: {

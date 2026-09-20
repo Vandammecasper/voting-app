@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import React from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
@@ -18,11 +18,11 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  createTeam,
-  deleteTeam,
-  getTeam,
-  MIN_TEAM_MEMBERS,
-  updateTeam,
+    createTeam,
+    deleteTeam,
+    getTeam,
+    MIN_TEAM_MEMBERS,
+    updateTeam,
 } from '@/services/teams';
 
 export default function TeamEditScreen() {

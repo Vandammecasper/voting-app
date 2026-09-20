@@ -188,6 +188,8 @@ function FeatureRequestCard({ id, item, currentUserId, onLikeToggle, onEdit, onD
               style={styles.cardActionButton}
               onPress={() => onEdit(id)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Edit request"
             >
               <Ionicons name="pencil-outline" size={18} color={Colors.icon} />
               <Text style={styles.cardActionLabel}>Edit</Text>
@@ -196,6 +198,8 @@ function FeatureRequestCard({ id, item, currentUserId, onLikeToggle, onEdit, onD
               style={styles.cardActionButton}
               onPress={() => onDelete(id)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Remove request"
             >
               <Ionicons name="trash-outline" size={18} color={Colors.icon} />
               <Text style={styles.cardActionLabel}>Remove</Text>
@@ -214,6 +218,8 @@ function FeatureRequestCard({ id, item, currentUserId, onLikeToggle, onEdit, onD
             onPress={handleLikePress}
             disabled={liking}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={hasLiked ? 'Unlike request' : 'Like request'}
           >
             <Ionicons
               name={hasLiked ? 'heart' : 'heart-outline'}
@@ -581,7 +587,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 136,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   scrollContentCentered: {

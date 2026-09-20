@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
+  Dimensions,
   Keyboard,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -13,16 +12,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { project, rubberband, SHEET_SPRING, UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { VoteDraftInput } from '@/services/voteDraftStorage';
+import { snapHaptic } from '@/utils/haptics';
+import { PressableScale } from './pressable-scale';
 
 type VoteType = 'mvpOnly' | 'mvpAndLoser';
 type DraftDropdownField = 'mvp' | 'loser';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-const DISMISS_DRAG_DISTANCE = 90;
-const HIDDEN_PANEL_TRANSLATE_Y = 700;
 const AUTOSAVE_DEBOUNCE_MS = 600;
+const HIDDEN_Y = Dimensions.get('window').height;
 
 interface DraftDropdownProps {
   value: string;
@@ -37,12 +48,18 @@ interface DraftDropdownProps {
 function DraftDropdown({ value, options, placeholder, isOpen, onToggle, onClose, onSelect }: DraftDropdownProps) {
   return (
     <View style={styles.dropdownContainer}>
-      <Pressable style={[styles.dropdown, isOpen && styles.dropdownOpen]} onPress={onToggle}>
+      <PressableScale
+        style={[styles.dropdown, isOpen && styles.dropdownOpen]}
+        onPress={onToggle}
+        haptic={false}
+        accessibilityRole="button"
+        accessibilityLabel={value ? `${placeholder}: ${value}` : placeholder}
+      >
         <Text style={[styles.dropdownText, !value && styles.dropdownPlaceholder]}>
           {value || placeholder}
         </Text>
         <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.icon} />
-      </Pressable>
+      </PressableScale>
 
       {isOpen && Platform.OS !== 'android' && (
         <View style={styles.dropdownList}>
@@ -54,16 +71,20 @@ function DraftDropdown({ value, options, placeholder, isOpen, onToggle, onClose,
           >
             {options.length > 0 ? (
               options.map((option) => (
-                <Pressable
+                <PressableScale
                   key={option}
                   style={[styles.dropdownItem, value === option && styles.dropdownItemSelected]}
                   onPress={() => onSelect(option)}
+                  haptic={false}
+                  accessibilityRole="button"
+                  accessibilityLabel={option}
+                  accessibilityState={{ selected: value === option }}
                 >
                   <Text style={[styles.dropdownItemText, value === option && styles.dropdownItemTextSelected]}>
                     {option}
                   </Text>
                   {value === option && <Ionicons name="checkmark" size={18} color="#6E92FF" />}
-                </Pressable>
+                </PressableScale>
               ))
             ) : (
               <Text style={styles.emptyOptionsText}>Waiting for participants...</Text>
@@ -90,16 +111,20 @@ function DraftDropdown({ value, options, placeholder, isOpen, onToggle, onClose,
               >
                 {options.length > 0 ? (
                   options.map((option) => (
-                    <Pressable
+                    <PressableScale
                       key={option}
                       style={[styles.dropdownItem, value === option && styles.dropdownItemSelected]}
                       onPress={() => onSelect(option)}
+                      haptic={false}
+                      accessibilityRole="button"
+                      accessibilityLabel={option}
+                      accessibilityState={{ selected: value === option }}
                     >
                       <Text style={[styles.dropdownItemText, value === option && styles.dropdownItemTextSelected]}>
                         {option}
                       </Text>
                       {value === option && <Ionicons name="checkmark" size={18} color="#6E92FF" />}
-                    </Pressable>
+                    </PressableScale>
                   ))
                 ) : (
                   <Text style={styles.emptyOptionsText}>Waiting for participants...</Text>
@@ -138,14 +163,23 @@ export function VoteDraftPanel({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isMounted, setIsMounted] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(HIDDEN_PANEL_TRANSLATE_Y)).current;
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
+  const reduceMotionSV = useSharedValue(reduceMotion);
+  const backdropOpacity = useSharedValue(0);
+  const sheetTranslateY = useSharedValue(HIDDEN_Y);
+  const dragStartY = useSharedValue(0);
   const lastSavedDraftKeyRef = useRef<string | null>(null);
   const wasVisibleRef = useRef(false);
+  const closingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const mvpCommentYRef = useRef(0);
   const loserCommentYRef = useRef(0);
   const activeCommentFieldRef = useRef<'mvp' | 'loser' | null>(null);
+
+  useEffect(() => {
+    reduceMotionSV.value = reduceMotion;
+  }, [reduceMotion, reduceMotionSV]);
 
   const scrollActiveCommentIntoView = useCallback(() => {
     const delay = Platform.OS === 'android' ? 280 : 120;
@@ -200,57 +234,81 @@ export function VoteDraftPanel({
     }
   }, [currentDraft, currentDraftKey, onSave]);
 
-  const resetPanelPosition = useCallback(() => {
-    Animated.spring(sheetTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [sheetTranslateY]);
+  const finishClose = useCallback(() => {
+    closingRef.current = false;
+    setIsMounted(false);
+    setKeyboardHeight(0);
+    sheetTranslateY.value = HIDDEN_Y;
+    backdropOpacity.value = 0;
+    onClose();
+  }, [backdropOpacity, onClose, sheetTranslateY]);
 
-  const closePanel = useCallback(() => {
-    void saveDraftNow();
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: HIDDEN_PANEL_TRANSLATE_Y,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setIsMounted(false);
-      setKeyboardHeight(0);
-      sheetTranslateY.setValue(HIDDEN_PANEL_TRANSLATE_Y);
-      backdropOpacity.setValue(0);
-      onClose();
-    });
-  }, [backdropOpacity, onClose, saveDraftNow, sheetTranslateY]);
+  const closePanel = useCallback(
+    (velocity = 0) => {
+      if (closingRef.current) {
+        return;
+      }
+      closingRef.current = true;
+      void saveDraftNow();
+      snapHaptic();
 
-  const panelPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          Math.abs(gestureState.dy) > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
-        onPanResponderMove: (_, gestureState) => {
-          sheetTranslateY.setValue(Math.max(0, gestureState.dy));
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dy > DISMISS_DRAG_DISTANCE || gestureState.vy > 0.7) {
-            closePanel();
-            return;
-          }
+      const onDone = (finished?: boolean) => {
+        if (finished) {
+          runOnJS(finishClose)();
+        } else {
+          closingRef.current = false;
+        }
+      };
 
-          resetPanelPosition();
-        },
-        onPanResponderTerminate: resetPanelPosition,
-      }),
-    [closePanel, resetPanelPosition, sheetTranslateY]
+      if (reduceMotion) {
+        backdropOpacity.value = withTiming(0, { duration: 200 }, onDone);
+        return;
+      }
+
+      backdropOpacity.value = withTiming(0, { duration: 180 });
+      sheetTranslateY.value = withSpring(HIDDEN_Y, { ...SHEET_SPRING, velocity }, onDone);
+    },
+    [backdropOpacity, finishClose, reduceMotion, saveDraftNow, sheetTranslateY]
   );
+
+  const resetPanelPosition = useCallback(
+    (velocity = 0) => {
+      if (reduceMotion) {
+        sheetTranslateY.value = 0;
+        return;
+      }
+      sheetTranslateY.value = withSpring(0, { ...SHEET_SPRING, velocity });
+    },
+    [reduceMotion, sheetTranslateY]
+  );
+
+  const handleCloseFromJS = useCallback(() => {
+    closePanel(0);
+  }, [closePanel]);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetY([-4, 4])
+    .failOffsetX([-24, 24])
+    .onStart(() => {
+      dragStartY.value = sheetTranslateY.value;
+    })
+    .onUpdate((event) => {
+      const next = dragStartY.value + event.translationY;
+      if (next < 0) {
+        sheetTranslateY.value = rubberband(next, HIDDEN_Y);
+        return;
+      }
+      sheetTranslateY.value = next;
+    })
+    .onEnd((event) => {
+      const projected = sheetTranslateY.value + project(event.velocityY);
+      const shouldClose = projected > HIDDEN_Y / 3;
+      if (shouldClose) {
+        runOnJS(closePanel)(event.velocityY);
+        return;
+      }
+      runOnJS(resetPanelPosition)(event.velocityY);
+    });
 
   useEffect(() => {
     if (!visible) {
@@ -263,6 +321,7 @@ export function VoteDraftPanel({
     }
 
     wasVisibleRef.current = true;
+    closingRef.current = false;
     setIsMounted(true);
     setMvpName(initialDraft.mvpName);
     setMvpComment(initialDraft.mvpComment);
@@ -271,24 +330,16 @@ export function VoteDraftPanel({
     setOpenDropdown(null);
     setSaveStatus('idle');
     lastSavedDraftKeyRef.current = getInitialDraftKey();
-    backdropOpacity.setValue(0);
-    sheetTranslateY.setValue(HIDDEN_PANEL_TRANSLATE_Y);
+    backdropOpacity.value = 0;
+    sheetTranslateY.value = reduceMotion ? 0 : HIDDEN_Y;
 
     requestAnimationFrame(() => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.spring(sheetTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }),
-      ]).start();
+      backdropOpacity.value = withTiming(1, { duration: reduceMotion ? 200 : 180 });
+      if (!reduceMotion) {
+        sheetTranslateY.value = withSpring(0, UI_SPRING);
+      }
     });
-  }, [backdropOpacity, getInitialDraftKey, initialDraft, sheetTranslateY, visible]);
+  }, [backdropOpacity, getInitialDraftKey, initialDraft, reduceMotion, sheetTranslateY, visible]);
 
   useEffect(() => {
     if (!visible || !isMounted || lastSavedDraftKeyRef.current === currentDraftKey) {
@@ -326,26 +377,40 @@ export function VoteDraftPanel({
     };
   }, [isMounted, scrollActiveCommentIntoView]);
 
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reduceMotionSV.value ? 0 : sheetTranslateY.value }],
+  }));
+
   return (
     <Modal
       visible={isMounted}
       transparent
       animationType="none"
-      onRequestClose={closePanel}
+      onRequestClose={handleCloseFromJS}
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={styles.overlay}>
       <View style={styles.overlay}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={closePanel} />
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleCloseFromJS}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss draft"
+          />
         </Animated.View>
 
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
-          <View style={styles.dragArea} {...panelPanResponder.panHandlers}>
-            <View style={styles.dragHandleContainer}>
-              <View style={styles.dragHandle} />
-            </View>
-            <View style={styles.header}>
-              <Text style={styles.title}>Draft your vote</Text>
+        <Animated.View style={[styles.sheet, sheetStyle, { paddingBottom: 16 + insets.bottom }]}>
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.dragArea} collapsable={false} accessibilityRole="adjustable" accessibilityLabel="Drag to dismiss draft">
+              <View style={styles.dragHandleContainer}>
+                <View style={styles.dragHandle} />
+              </View>
+              <View style={styles.header}>
+                <Text style={styles.title}>Draft your vote</Text>
               {saveStatus !== 'idle' && (
                 <Text style={[styles.saveStatus, saveStatus === 'error' && styles.saveStatusError]}>
                   {saveStatus === 'saving'
@@ -357,6 +422,7 @@ export function VoteDraftPanel({
               )}
             </View>
           </View>
+          </GestureDetector>
 
           <ScrollView
             ref={scrollRef}
@@ -456,6 +522,7 @@ export function VoteDraftPanel({
           </ScrollView>
         </Animated.View>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -477,7 +544,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 34,
+    paddingBottom: 16,
     overflow: 'hidden',
   },
   dragArea: {

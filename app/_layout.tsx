@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -17,7 +18,7 @@ import { useVersionCheck } from '@/hooks/useVersionCheck';
 applyRootBackground();
 
 export const unstable_settings = {
-  anchor: '(tabs)', // drawer navigation group
+  anchor: '(tabs)',
 };
 
 // Custom dark theme with #292929 background
@@ -118,13 +119,15 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider style={styles.root}>
-      <AuthProvider>
-        <ThemeProvider value={AppTheme}>
-          <RootLayoutNav />
-        </ThemeProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider style={styles.root}>
+        <AuthProvider>
+          <ThemeProvider value={AppTheme}>
+            <RootLayoutNav />
+          </ThemeProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

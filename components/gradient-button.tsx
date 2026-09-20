@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Pressable,
     StyleProp,
     StyleSheet,
     Text,
@@ -11,6 +10,7 @@ import {
 
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { GradientText } from './gradient-text';
+import { PressableScale } from './pressable-scale';
 
 const GRADIENT_COLORS = ['#6E92FF', '#90FF91'] as const;
 
@@ -30,10 +30,13 @@ export function PrimaryButton({
   disabled,
 }: GradientButtonProps) {
   return (
-    <Pressable 
-      onPress={onPress} 
+    <PressableScale
+      onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, disabled && { opacity: 0.5 }]}
+      accessibilityRole="button"
+      accessibilityLabel={children}
+      style={[style, disabled && styles.disabled]}
+      innerStyle={styles.fill}
     >
       <LinearGradient
         colors={GRADIENT_COLORS}
@@ -43,7 +46,7 @@ export function PrimaryButton({
       >
         <Text style={[styles.primaryText, textStyle]}>{children}</Text>
       </LinearGradient>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -55,10 +58,13 @@ export function SecondaryButton({
     disabled,
   }: GradientButtonProps) {
     return (
-      <Pressable 
-        onPress={onPress} 
+      <PressableScale
+        onPress={onPress}
         disabled={disabled}
-        style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, disabled && { opacity: 0.5 }]}
+        accessibilityRole="button"
+        accessibilityLabel={children}
+        style={[style, disabled && styles.disabled]}
+        innerStyle={styles.fill}
       >
         <LinearGradient
           colors={GRADIENT_COLORS}
@@ -73,11 +79,14 @@ export function SecondaryButton({
             />
           </View>
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
     );
   }
 
 const styles = StyleSheet.create({
+  fill: {
+    width: '100%',
+  },
   button: {
     borderRadius: 28,
     paddingVertical: 10,
@@ -108,5 +117,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: defaultFontFamily,
   },
+  disabled: {
+    opacity: 0.5,
+  },
 });
-

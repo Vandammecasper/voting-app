@@ -1,13 +1,17 @@
 import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { PressableScale } from '@/components/pressable-scale';
+import { SwipePager } from '@/components/swipe-pager';
 import { ThemedView } from '@/components/themed-view';
+import { UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { setOnboardingCompleted } from '@/services/onboardingStorage';
 
 export default function OnboardingStep2() {
@@ -22,11 +26,11 @@ export default function OnboardingStep2() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [currentVideo, setCurrentVideo] = useState<'createLobby' | 'voting' | 'votingResults'>('createLobby');
   const [shouldLoop, setShouldLoop] = useState<boolean>(true);
+  const reduceMotion = useReducedMotion();
   const fadeOpacity = useSharedValue(0);
-  const titleTranslateX = useSharedValue(0);
-  const descriptionTranslateX = useSharedValue(0);
-  
-  // Dot animations - start with step 1 active
+  const pageWidth = screenWidth - 64;
+
+  const VIDEOS = ['createLobby', 'voting', 'votingResults'] as const;
   const dot1Width = useSharedValue(24);
   const dot2Width = useSharedValue(8);
   const dot3Width = useSharedValue(8);
@@ -67,21 +71,19 @@ export default function OnboardingStep2() {
   }, [screenWidth]);
 
   useEffect(() => {
-    // Fade in animation
-    fadeOpacity.value = withTiming(1, { duration: 400 });
-  }, []);
+    fadeOpacity.value = reduceMotion ? withTiming(1, { duration: 200 }) : withSpring(1, UI_SPRING);
+  }, [fadeOpacity, reduceMotion]);
 
   // Animate dots when step changes
   useEffect(() => {
     // Animate dot widths
-    dot1Width.value = withTiming(currentStep === 1 ? 24 : 8, { duration: 300 });
-    dot2Width.value = withTiming(currentStep === 2 ? 24 : 8, { duration: 300 });
-    dot3Width.value = withTiming(currentStep === 3 ? 24 : 8, { duration: 300 });
+    dot1Width.value = withSpring(currentStep === 1 ? 24 : 8, UI_SPRING);
+    dot2Width.value = withSpring(currentStep === 2 ? 24 : 8, UI_SPRING);
+    dot3Width.value = withSpring(currentStep === 3 ? 24 : 8, UI_SPRING);
     
-    // Animate dot colors (0 = inactive, 1 = active)
-    dot1Color.value = withTiming(currentStep === 1 ? 1 : 0, { duration: 300 });
-    dot2Color.value = withTiming(currentStep === 2 ? 1 : 0, { duration: 300 });
-    dot3Color.value = withTiming(currentStep === 3 ? 1 : 0, { duration: 300 });
+    dot1Color.value = withTiming(currentStep === 1 ? 1 : 0, { duration: 200 });
+    dot2Color.value = withTiming(currentStep === 2 ? 1 : 0, { duration: 200 });
+    dot3Color.value = withTiming(currentStep === 3 ? 1 : 0, { duration: 200 });
   }, [currentStep]);
 
   // Reset video ready state when video source changes
@@ -102,8 +104,11 @@ export default function OnboardingStep2() {
     try {
       setVideoReady(true);
       if (videoRef.current) {
-        // Set looping based on shouldLoop state
         await videoRef.current.setIsLoopingAsync(shouldLoop);
+        if (reduceMotion) {
+          await videoRef.current.pauseAsync();
+          return;
+        }
         await videoRef.current.playAsync();
       }
     } catch (error) {
@@ -115,18 +120,6 @@ export default function OnboardingStep2() {
   const fadeAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: fadeOpacity.value,
-    };
-  });
-
-  const titleAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: titleTranslateX.value }],
-    };
-  });
-
-  const descriptionAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: descriptionTranslateX.value }],
     };
   });
 
@@ -163,77 +156,31 @@ export default function OnboardingStep2() {
     };
   });
 
-  const updateStep = (newStep: number) => {
-    setCurrentStep(newStep);
-    // Position new content off-screen to the right
-    titleTranslateX.value = screenWidth;
-    descriptionTranslateX.value = screenWidth;
-    // Slide in from right
-    titleTranslateX.value = withTiming(0, { duration: 300 });
-    descriptionTranslateX.value = withTiming(0, { duration: 300 });
-  };
-
-  const goBackStep = (newStep: number, video: 'createLobby' | 'voting' | 'votingResults') => {
+  const goToStep = (newStep: number) => {
+    if (newStep < 1 || newStep > 3) {
+      return;
+    }
     setCurrentStep(newStep);
     setShouldLoop(true);
-    setCurrentVideo(video);
+    setCurrentVideo(VIDEOS[newStep - 1]);
     setVideoReady(false);
-    // Position new content off-screen to the left
-    titleTranslateX.value = -screenWidth;
-    descriptionTranslateX.value = -screenWidth;
-    // Slide in from left
-    titleTranslateX.value = withTiming(0, { duration: 300 });
-    descriptionTranslateX.value = withTiming(0, { duration: 300 });
   };
 
   const handleNext = async () => {
-    if (currentStep === 1) {
-      // Immediately switch to voting video and start looping
-      setShouldLoop(true);
-      setCurrentVideo('voting');
-      setVideoReady(false);
-      
-      // Slide out current content
-      titleTranslateX.value = withTiming(-screenWidth, { duration: 300 });
-      descriptionTranslateX.value = withTiming(-screenWidth, { duration: 300 }, () => {
-        // Change step and slide in new content
-        runOnJS(updateStep)(2);
-      });
-    } else if (currentStep === 2) {
-      // Immediately switch to votingResults video and start looping
-      setShouldLoop(true);
-      setCurrentVideo('votingResults');
-      setVideoReady(false);
-      
-      // Slide out current content
-      titleTranslateX.value = withTiming(-screenWidth, { duration: 300 });
-      descriptionTranslateX.value = withTiming(-screenWidth, { duration: 300 }, () => {
-        // Change step and slide in new content
-        runOnJS(updateStep)(3);
-      });
-    } else {
-      await setOnboardingCompleted();
-      router.push('/(tabs)');
+    if (currentStep < 3) {
+      goToStep(currentStep + 1);
+      return;
     }
+    await setOnboardingCompleted();
+    router.push('/(tabs)');
   };
 
   const handleGoBack = () => {
-    if (currentStep === 3) {
-      // Go back to step 2
-      titleTranslateX.value = withTiming(screenWidth, { duration: 300 });
-      descriptionTranslateX.value = withTiming(screenWidth, { duration: 300 }, () => {
-        runOnJS(goBackStep)(2, 'voting');
-      });
-    } else if (currentStep === 2) {
-      // Go back to step 1
-      titleTranslateX.value = withTiming(screenWidth, { duration: 300 });
-      descriptionTranslateX.value = withTiming(screenWidth, { duration: 300 }, () => {
-        runOnJS(goBackStep)(1, 'createLobby');
-      });
-    } else {
-      // On step 1, go back to previous screen
-      router.back();
+    if (currentStep > 1) {
+      goToStep(currentStep - 1);
+      return;
     }
+    router.back();
   };
 
   return (
@@ -275,44 +222,47 @@ export default function OnboardingStep2() {
           />
         </View>
 
-        <View style={styles.titleContainer}>
-          <Animated.View style={[titleAnimatedStyle, { width: '100%', alignItems: 'center' }]}>
-            {currentStep === 1 ? (
+        <SwipePager
+          index={currentStep - 1}
+          onIndexChange={(next) => goToStep(next + 1)}
+          pageWidth={pageWidth}
+        >
+          {[
+            <View key="step-1" style={styles.pagerPage}>
               <GradientText
                 text="Create or Join"
                 colors={['#6E92FF', '#90FF91']}
                 style={styles.title}
                 secondLine="a lobby"
               />
-            ) : currentStep === 2 ? (
+              <Text style={styles.description}>
+                One teammate creates a lobby{'\n'}Everyone else joins with a code
+              </Text>
+            </View>,
+            <View key="step-2" style={styles.pagerPage}>
               <GradientText
                 text="Vote together"
                 colors={['#6E92FF', '#90FF91']}
                 style={styles.title}
                 secondLine="in real time"
               />
-            ) : (
+              <Text style={styles.description}>
+                Pick the MVP and the loser together{'\n'}Live and in real time!
+              </Text>
+            </View>,
+            <View key="step-3" style={styles.pagerPage}>
               <GradientText
                 text="Reveal the results"
                 colors={['#6E92FF', '#90FF91']}
                 style={styles.title}
                 secondLine="as one team"
               />
-            )}
-          </Animated.View>
-        </View>
-
-        <View style={styles.descriptionContainer}>
-          <Animated.View style={[descriptionAnimatedStyle, { width: '100%', alignItems: 'center' }]}>
-            <Text style={styles.description}>
-              {currentStep === 1 
-                ? "One teammate creates a lobby\nEveryone else joins with a code"
-                : currentStep === 2
-                ? "Pick the MVP and the loser together\nLive and in real time!"
-                : "The host reveals the votes one by one then see the final ranking toghether"}
-            </Text>
-          </Animated.View>
-        </View>
+              <Text style={styles.description}>
+                The host reveals the votes one by one then see the final ranking toghether
+              </Text>
+            </View>,
+          ]}
+        </SwipePager>
 
         <View style={styles.paginationContainer}>
           <Animated.View style={[styles.dot, dot1AnimatedStyle]} />
@@ -330,9 +280,9 @@ export default function OnboardingStep2() {
           </PrimaryButton>
         </View>
 
-        <TouchableOpacity onPress={handleGoBack} style={styles.goBackContainer}>
+        <PressableScale onPress={handleGoBack} style={styles.goBackContainer} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.goBackText}>Go back</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </Animated.View>
     </ThemedView>
   );
@@ -384,6 +334,14 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
+    letterSpacing: -0.6,
+    lineHeight: 42,
+  },
+  pagerPage: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    gap: 24,
+    marginBottom: 32,
   },
   descriptionContainer: {
     marginBottom: 32,

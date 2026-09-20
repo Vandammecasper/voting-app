@@ -9,7 +9,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+
+import { UI_SPRING } from '@/constants/motion';
 
 import { Colors, defaultFontFamily } from '@/constants/theme';
 
@@ -19,7 +21,7 @@ function AnimatedChevron({ isOpen }: { isOpen: boolean }) {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withTiming(isOpen ? 180 : 0, { duration: 200 });
+    rotation.value = withSpring(isOpen ? 180 : 0, UI_SPRING);
   }, [isOpen, rotation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
