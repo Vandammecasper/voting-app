@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import auth from '@react-native-firebase/auth';
 import React from 'react';
 import {
   Alert,
@@ -19,6 +18,7 @@ import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
@@ -26,9 +26,9 @@ const DATABASE_URL = getFirebaseDatabaseUrl();
 // Read data via REST API (same pattern as userInput, history, waitingRoom, etc.)
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return null;
-    const token = await currentUser.getIdToken();
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) return null;
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url);
     if (!response.ok) return null;
@@ -42,9 +42,9 @@ async function readViaRest<T>(path: string): Promise<T | null> {
 // Push new entry via REST API (same pattern as userInput pushViaRest)
 async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return null;
-    const token = await currentUser.getIdToken();
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) return null;
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url, {
       method: 'POST',
@@ -62,9 +62,9 @@ async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
 // Write (PUT) at path - for toggling like
 async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return false;
-    const token = await currentUser.getIdToken();
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) return false;
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url, {
       method: 'PUT',
@@ -80,9 +80,9 @@ async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
 // Delete at path - for removing like or removing a request
 async function deleteViaRest(path: string): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return false;
-    const token = await currentUser.getIdToken();
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) return false;
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url, { method: 'DELETE' });
     return response.ok;
@@ -94,9 +94,9 @@ async function deleteViaRest(path: string): Promise<boolean> {
 // PATCH at path - update only specified keys (for editing request)
 async function patchViaRest(path: string, data: Record<string, unknown>): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) return false;
-    const token = await currentUser.getIdToken();
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) return false;
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url, {
       method: 'PATCH',

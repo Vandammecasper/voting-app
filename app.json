@@ -46,7 +46,7 @@
     },
     "plugins": [
       "expo-router",
-      "expo-av",
+      "expo-video",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "./app.plugin.js",

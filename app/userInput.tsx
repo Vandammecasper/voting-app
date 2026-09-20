@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import auth from '@react-native-firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { generateLobbyCode } from '@/services/database';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 import {
@@ -47,13 +47,12 @@ function isJoinableLobbyStatus(status: string): status is JoinableLobbyStatus {
 // Helper to read data using REST API (bypasses SDK issues)
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       console.error('❌ No authenticated user for REST call');
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url);
@@ -74,13 +73,12 @@ async function readViaRest<T>(path: string): Promise<T | null> {
 // Helper to write data using REST API (bypasses SDK issues)
 async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       console.error('❌ No authenticated user for REST write');
       return false;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {
@@ -106,13 +104,12 @@ async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
 // Helper to push data using REST API (creates new entry with generated key)
 async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       console.error('❌ No authenticated user for REST push');
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {

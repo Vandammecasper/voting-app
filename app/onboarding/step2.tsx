@@ -1,6 +1,7 @@
-import { ResizeMode, Video } from 'expo-av';
+import { useEventListener } from 'expo';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
@@ -14,19 +15,28 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { setOnboardingCompleted } from '@/services/onboardingStorage';
 
+const VIDEO_SOURCES = {
+  createLobby: require('@/assets/images/createLobby.mov'),
+  voting: require('@/assets/images/voting.mov'),
+  votingResults: require('@/assets/images/votingResults.mov'),
+} as const;
+
+type OnboardingVideo = keyof typeof VIDEO_SOURCES;
+
 export default function OnboardingStep2() {
-  const videoRef = useRef<Video>(null);
   const screenWidth = Dimensions.get('window').width;
   const [iphoneWidth, setIphoneWidth] = useState<number>(300);
   const [iphoneHeight, setIphoneHeight] = useState<number>(600);
   const [videoWidth, setVideoWidth] = useState<number>(250);
   const [videoHeight, setVideoHeight] = useState<number>(500);
   const [videoError, setVideoError] = useState<boolean>(false);
-  const [videoReady, setVideoReady] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [currentVideo, setCurrentVideo] = useState<'createLobby' | 'voting' | 'votingResults'>('createLobby');
+  const [currentVideo, setCurrentVideo] = useState<OnboardingVideo>('createLobby');
   const [shouldLoop, setShouldLoop] = useState<boolean>(true);
   const reduceMotion = useReducedMotion();
+  const player = useVideoPlayer(VIDEO_SOURCES.createLobby, (nextPlayer) => {
+    nextPlayer.loop = true;
+  });
   const fadeOpacity = useSharedValue(0);
   const pageWidth = screenWidth - 64;
 
@@ -86,36 +96,47 @@ export default function OnboardingStep2() {
     dot3Color.value = withTiming(currentStep === 3 ? 1 : 0, { duration: 200 });
   }, [currentStep]);
 
-  // Reset video ready state when video source changes
   useEffect(() => {
-    setVideoReady(false);
-  }, [currentVideo]);
+    let cancelled = false;
 
-  // When shouldLoop changes, update the current video's looping state
-  useEffect(() => {
-    if (videoRef.current && videoReady) {
-      videoRef.current.setIsLoopingAsync(shouldLoop).catch((error) => {
-        console.error('Error setting video looping:', error);
-      });
-    }
-  }, [shouldLoop, videoReady]);
-
-  const handleVideoLoad = async () => {
-    try {
-      setVideoReady(true);
-      if (videoRef.current) {
-        await videoRef.current.setIsLoopingAsync(shouldLoop);
+    void (async () => {
+      try {
+        await player.replaceAsync(VIDEO_SOURCES[currentVideo]);
+        if (cancelled) return;
+        player.loop = shouldLoop;
         if (reduceMotion) {
-          await videoRef.current.pauseAsync();
-          return;
+          player.pause();
+        } else {
+          player.play();
         }
-        await videoRef.current.playAsync();
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Error playing video:', error);
+        setVideoError(true);
       }
-    } catch (error) {
-      console.error('Error playing video:', error);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentVideo, player]);
+
+  useEffect(() => {
+    player.loop = shouldLoop;
+  }, [player, shouldLoop]);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      player.pause();
+    }
+  }, [player, reduceMotion]);
+
+  useEventListener(player, 'statusChange', ({ status, error }) => {
+    if (status === 'error') {
+      console.error('Video error:', error);
       setVideoError(true);
     }
-  };
+  });
 
   const fadeAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -163,7 +184,6 @@ export default function OnboardingStep2() {
     setCurrentStep(newStep);
     setShouldLoop(true);
     setCurrentVideo(VIDEOS[newStep - 1]);
-    setVideoReady(false);
   };
 
   const handleNext = async () => {
@@ -189,23 +209,11 @@ export default function OnboardingStep2() {
         <View style={styles.phoneContainer}>
           {!videoError && (
             <View style={[styles.videoContainer, { width: videoWidth, height: videoHeight }]}>
-              <Video
-                key={currentVideo}
-                ref={videoRef}
-                source={
-                  currentVideo === 'createLobby' 
-                    ? require('@/assets/images/createLobby.mov')
-                    : currentVideo === 'voting'
-                    ? require('@/assets/images/voting.mov')
-                    : require('@/assets/images/votingResults.mov')
-                }
+              <VideoView
+                player={player}
                 style={styles.video}
-                resizeMode={ResizeMode.COVER}
-                onLoad={handleVideoLoad}
-                onError={(error) => {
-                  console.error('Video error:', error);
-                  setVideoError(true);
-                }}
+                contentFit="cover"
+                nativeControls={false}
               />
             </View>
           )}

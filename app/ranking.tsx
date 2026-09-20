@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import auth from '@react-native-firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -9,6 +8,7 @@ import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
@@ -36,12 +36,11 @@ interface RankingEntry {
 // Helper to read data using REST API
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url);

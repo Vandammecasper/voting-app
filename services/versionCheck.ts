@@ -1,7 +1,7 @@
-import auth from '@react-native-firebase/auth';
 import Constants from 'expo-constants';
 import { Linking, Platform } from 'react-native';
 
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
@@ -51,8 +51,9 @@ export function isAppVersionOutdated(current: string, minimumVersion: string): b
 
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       console.warn(`${LOG_PREFIX} Skipping fetch for "${path}" — no authenticated user`);
       return null;
     }
@@ -63,7 +64,7 @@ async function readViaRest<T>(path: string): Promise<T | null> {
       return null;
     }
 
-    const url = `${DATABASE_URL}/${path}.json?auth=${await currentUser.getIdToken()}`;
+    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     console.log(`${LOG_PREFIX} Fetching`, path, 'from', DATABASE_URL);
 
     const response = await fetch(url);

@@ -1,5 +1,4 @@
-import auth from '@react-native-firebase/auth';
-
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
@@ -27,12 +26,11 @@ async function restRequest(
   init?: RequestInit
 ): Promise<{ ok: boolean; json: unknown }> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser || !DATABASE_URL) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token || !DATABASE_URL) {
       return { ok: false, json: null };
     }
-
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     const response = await fetch(url, init);
     if (!response.ok) {

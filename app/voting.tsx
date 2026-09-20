@@ -1,4 +1,3 @@
-import auth from '@react-native-firebase/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -21,6 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeMemberList } from '@/services/teams';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
 
@@ -48,12 +48,11 @@ interface LobbyData {
 // Helper to read data using REST API
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url);
@@ -72,12 +71,11 @@ async function readViaRest<T>(path: string): Promise<T | null> {
 // Helper to write data using REST API
 async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return false;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {

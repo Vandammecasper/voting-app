@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import auth from '@react-native-firebase/auth';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { isTeamLobby } from '@/services/teams';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
@@ -51,12 +51,11 @@ interface HistoryItem {
 // Helper to read data using REST API
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url);
@@ -75,12 +74,11 @@ async function readViaRest<T>(path: string): Promise<T | null> {
 // Helper to delete data using REST API
 async function deleteViaRest(path: string): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return false;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {

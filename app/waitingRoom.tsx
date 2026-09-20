@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import auth from '@react-native-firebase/auth';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,6 +14,7 @@ import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 import {
   claimedParticipantNames,
@@ -39,12 +39,11 @@ const shownNameChangePromptKeys = new Set<string>();
 // Helper to read data using REST API (silent version for polling)
 async function readViaRest<T>(path: string): Promise<T | null> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return null;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url);
@@ -63,12 +62,11 @@ async function readViaRest<T>(path: string): Promise<T | null> {
 // Helper to update data using REST API (PATCH for partial updates)
 async function updateViaRest<T>(path: string, data: T): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return false;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {
@@ -89,12 +87,11 @@ async function updateViaRest<T>(path: string, data: T): Promise<boolean> {
 // Helper to delete data using REST API
 async function deleteViaRest(path: string): Promise<boolean> {
   try {
-    const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const currentUser = getFirebaseAuth().currentUser;
+    const token = await getCurrentIdToken();
+    if (!currentUser || !token) {
       return false;
     }
-    
-    const token = await currentUser.getIdToken();
     const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
     
     const response = await fetch(url, {
