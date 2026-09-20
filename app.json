@@ -2,7 +2,7 @@
   "expo": {
     "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.4.6",
+    "version": "1.5.0",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
