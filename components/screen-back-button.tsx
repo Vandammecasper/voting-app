@@ -29,16 +29,13 @@ export function ScreenBackButton({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={resolvedLabel}
-      hitSlop={12}
+      hitSlop={16}
       collapsable={false}
       style={[styles.button, isExit ? styles.exit : styles.back, { top: topOffset }]}
     >
       <View style={styles.content}>
         {isExit ? (
-          <>
-            <Text style={styles.label}>{resolvedLabel}</Text>
-            <Ionicons name="close" size={Platform.OS === 'ios' ? 28 : 24} color={Colors.text} />
-          </>
+          <Ionicons name="close" size={Platform.OS === 'ios' ? 28 : 24} color={Colors.text} />
         ) : (
           <>
             <Ionicons

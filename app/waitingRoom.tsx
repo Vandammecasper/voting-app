@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -16,9 +16,11 @@ import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { restDelete, restGet, restPatch, restPut } from '@/services/firebaseRest';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
+import { mvpVoteOptions } from '@/services/voteOptions';
 import {
   availableMemberNames,
   claimedNameSlotPath,
@@ -175,7 +177,7 @@ interface DisplayParticipant {
 }
 
 export default function WaitingRoomScreen() {
-  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
   const [isStarting, setIsStarting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -616,6 +618,8 @@ export default function WaitingRoomScreen() {
       .map((participant) => participant.name);
   }, [participantsData, teamMode, teamMembers]);
 
+  const myName = user?.uid ? participantsData?.[user.uid]?.name : undefined;
+
   return (
     <ThemedView safeAndroid style={styles.container}>
       <View style={styles.topSection}>
@@ -727,6 +731,7 @@ export default function WaitingRoomScreen() {
       <VoteDraftPanel
         visible={showDraftVote && showDraftPanel}
         participantNames={participantNames}
+        mvpOptions={mvpVoteOptions(participantNames, myName)}
         voteType={lobbyData?.voteType ?? 'mvpAndLoser'}
         initialDraft={voteDraft}
         onClose={() => setShowDraftPanel(false)}

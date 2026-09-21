@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { RankingEntry, rankingsFromLobbyOrVotes, VoteTallyInput } from '@/services/voteRankings';
 
 interface LobbyData {
@@ -65,7 +66,7 @@ function RankingItem({ entry, position, type }: {
 }
 
 export default function RankingScreen() {
-  const { voteId } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId } = useVoteRouteParams();
   const { data: lobbyData, isLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000

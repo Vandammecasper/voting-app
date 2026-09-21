@@ -55,6 +55,10 @@ export function rankingsFromLobbyOrVotes(
   return calculateRankings(votes);
 }
 
+export function rankingListToMap(entries: RankingEntry[]): Record<string, RankingEntry> {
+  return Object.fromEntries(entries.map((entry, index) => [String(index), entry]));
+}
+
 export function normalizeRankingList(value: unknown): RankingEntry[] {
   const rows = Array.isArray(value)
     ? value

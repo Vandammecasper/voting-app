@@ -25,6 +25,24 @@ describe('vote flow chrome', () => {
     expect(panel).not.toContain('SecondaryButton');
   });
 
+  it('uses a close icon only for Exit, and leaves the waiting page to home', () => {
+    const exitButton = read('components/screen-back-button.tsx');
+    expect(exitButton).toContain('name="close"');
+    expect(exitButton).not.toContain('<Text style={styles.label}>{resolvedLabel}</Text>');
+
+    const waiting = read('app/votingWaiting.tsx');
+    expect(waiting).toContain("router.replace('/(tabs)')");
+    expect(waiting).not.toMatch(/replace\('\/'\)/);
+    expect(waiting).toContain('styles.body');
+    expect(waiting).toContain('totalParticipants > 0 && votesRemaining === 0');
+  });
+
+  it('omits the voter from MVP choices', () => {
+    expect(read('app/voting.tsx')).toContain('mvpVoteOptions');
+    expect(read('app/voting.tsx')).toContain('options={mvpOptions}');
+    expect(read('app/waitingRoom.tsx')).toContain('mvpVoteOptions');
+  });
+
   it('uses top-right Exit on vote-flow screens except final rankings', () => {
     const screens = [
       'app/waitingRoom.tsx',
@@ -44,6 +62,12 @@ describe('vote flow chrome', () => {
     expect(read('app/results.tsx')).toContain('isPublishedRankingStatus');
     expect(read('app/waitingRoom.tsx')).toContain('isPublishedRankingStatus');
     expect(read('app/results.tsx')).toContain("pathname: '/ranking'");
+    expect(read('app/votingWaiting.tsx')).toContain("persistLobbyStatus(voteId, 'results'");
+    expect(read('app/results.tsx')).toContain("persistPublishedRanking(");
+    expect(read('services/lobbyStatus.ts')).toContain("'completed'");
+    expect(read('services/lobbyStatus.ts')).toContain("'ranking'");
+    expect(read('app/votingWaiting.tsx')).toContain('Alert.alert');
+    expect(read('app/results.tsx')).toContain('Alert.alert');
   });
 
   it('hides native header chrome that flashes white during swipe-back', () => {
@@ -74,6 +98,6 @@ describe('vote flow chrome', () => {
     expect(ranking).toContain("router.replace('/(tabs)')");
     expect(ranking).not.toContain("router.replace('/(tabs)/history')");
     expect(ranking).not.toContain("router.replace('/history')");
-    expect(ranking).not.toContain("router.replace('/')");
+    expect(ranking).not.toMatch(/replace\('\/'\)/);
   });
 });

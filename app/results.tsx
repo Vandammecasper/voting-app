@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -11,9 +11,11 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
-import { restGet, restPatch } from '@/services/firebaseRest';
+import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
+import { restGet } from '@/services/firebaseRest';
 import { isPublishedRankingStatus } from '@/services/lobbyFlow';
-import { calculateRankings } from '@/services/voteRankings';
+import { persistPublishedRanking } from '@/services/lobbyStatus';
+import { calculateRankings, rankingListToMap } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
@@ -44,7 +46,7 @@ function shuffleInPlace<T>(items: T[]): T[] {
 }
 
 export default function ResultsScreen() {
-  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const pageWidth = windowWidth - 48;
@@ -52,6 +54,7 @@ export default function ResultsScreen() {
   const [votesData, setVotesData] = useState<VotesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentVoteIndex, setCurrentVoteIndex] = useState(0);
+  const [isPublishingRanking, setIsPublishingRanking] = useState(false);
 
   // Poll lobby data to detect status changes
   const { data: lobbyData, isLoading: lobbyLoading } = usePolledRestData<LobbyData>(
@@ -110,21 +113,31 @@ export default function ResultsScreen() {
   };
 
   const handleGoToRanking = async () => {
-    if (voteId) {
-      const rankings = calculateRankings(votesData);
-      const lobbyUpdate: Record<string, unknown> = { status: 'ranking' };
-      if (rankings.mvpRanking.length > 0) {
-        lobbyUpdate.mvpRanking = rankings.mvpRanking;
-      }
-      if (rankings.loserRanking.length > 0) {
-        lobbyUpdate.loserRanking = rankings.loserRanking;
-      }
-      await restPatch(`lobbies/${voteId}`, lobbyUpdate);
-      if (lobbyData?.code) {
-        await restPatch(`lobbyCodes/${lobbyData.code}`, { status: 'ranking' });
-      }
+    if (!voteId || isPublishingRanking) {
+      return;
     }
-    
+
+    setIsPublishingRanking(true);
+    const rankings = calculateRankings(votesData);
+    const extra: Record<string, unknown> = {};
+    if (rankings.mvpRanking.length > 0) {
+      extra.mvpRanking = rankingListToMap(rankings.mvpRanking);
+    }
+    if (rankings.loserRanking.length > 0) {
+      extra.loserRanking = rankingListToMap(rankings.loserRanking);
+    }
+
+    const persisted = await persistPublishedRanking(
+      voteId,
+      lobbyData?.code,
+      extra
+    );
+    if (!persisted.ok) {
+      Alert.alert("Couldn't publish ranking", persisted.error);
+      setIsPublishingRanking(false);
+      return;
+    }
+
     router.replace({
       pathname: '/ranking',
       params: { voteId, from },
@@ -165,13 +178,13 @@ export default function ResultsScreen() {
             The host is reading the votes to the group. You will see the ranking as soon as they finish.
           </Text>
         </View>
-        <ScreenBackButton variant="exit" onPress={() => router.replace('/')} />
+        <ScreenBackButton variant="exit" onPress={() => router.replace('/(tabs)')} />
       </ThemedView>
     );
   }
 
   const handleExit = () => {
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   // Creator view - show individual votes
@@ -247,6 +260,7 @@ export default function ResultsScreen() {
           ) : (
             <PrimaryButton
               onPress={handleGoToRanking}
+              disabled={isPublishingRanking}
               style={styles.primaryBtn}
               textStyle={styles.buttonText}
             >

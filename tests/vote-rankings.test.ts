@@ -1,4 +1,4 @@
-import { calculateRankings, normalizeRankingList, rankingsFromLobbyOrVotes } from '@/services/voteRankings';
+import { calculateRankings, normalizeRankingList, rankingListToMap, rankingsFromLobbyOrVotes } from '@/services/voteRankings';
 import { generateLobbyCode, LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH } from '@/services/lobbyCode';
 
 describe('generateLobbyCode', () => {
@@ -28,6 +28,14 @@ describe('calculateRankings', () => {
         { name: 'Pat', votes: 1 },
       ])
     );
+  });
+});
+
+describe('rankingListToMap', () => {
+  it('stores rankings under string indexes Firebase can validate', () => {
+    expect(rankingListToMap([{ name: 'Pat', votes: 2 }])).toEqual({
+      '0': { name: 'Pat', votes: 2 },
+    });
   });
 });
 

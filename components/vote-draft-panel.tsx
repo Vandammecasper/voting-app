@@ -141,6 +141,7 @@ function DraftDropdown({ value, options, placeholder, isOpen, onToggle, onClose,
 interface VoteDraftPanelProps {
   visible: boolean;
   participantNames: string[];
+  mvpOptions?: string[];
   voteType: VoteType;
   initialDraft: VoteDraftInput;
   onClose: () => void;
@@ -150,6 +151,7 @@ interface VoteDraftPanelProps {
 export function VoteDraftPanel({
   visible,
   participantNames,
+  mvpOptions,
   voteType,
   initialDraft,
   onClose,
@@ -440,7 +442,7 @@ export function VoteDraftPanel({
             <Text style={styles.sectionLabel}>Your MVP of the match</Text>
             <DraftDropdown
               value={mvpName}
-              options={participantNames}
+              options={mvpOptions ?? participantNames}
               placeholder="Select the match MVP"
               isOpen={openDropdown === 'mvp'}
               onToggle={() => setOpenDropdown(openDropdown === 'mvp' ? null : 'mvp')}

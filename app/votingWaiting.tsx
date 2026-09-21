@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -10,8 +10,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
-import { restPatch } from '@/services/firebaseRest';
+import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
+import { persistLobbyStatus } from '@/services/lobbyStatus';
 
 interface Participant {
   name: string;
@@ -30,8 +31,9 @@ type ParticipantsData = Record<string, Participant>;
 type VoteReceiptsData = Record<string, boolean>;
 
 export default function VotingWaitingScreen() {
-  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
+  const [isOpeningResults, setIsOpeningResults] = useState(false);
   
   // Poll lobby data
   const { data: lobbyData } = usePolledRestData<LobbyData>(
@@ -84,28 +86,33 @@ export default function VotingWaitingScreen() {
   }, [lobbyData?.status, voteId, from]);
 
   const handleGoToResults = async () => {
-    // Update lobby status to 'results' so all participants navigate
-    if (voteId) {
-      await restPatch(`lobbies/${voteId}`, { status: 'results' });
-      if (lobbyData?.code) {
-        await restPatch(`lobbyCodes/${lobbyData.code}`, { status: 'results' });
-      }
+    if (!voteId || isOpeningResults) {
+      return;
     }
-    
+
+    setIsOpeningResults(true);
+    const persisted = await persistLobbyStatus(voteId, 'results', lobbyData?.code);
+    if (!persisted.ok) {
+      Alert.alert("Couldn't open results", persisted.error);
+      setIsOpeningResults(false);
+      return;
+    }
+
     router.replace({
       pathname: '/results',
       params: { voteId, from },
     });
   };
 
-  const everyoneHasVoted = votesRemaining === 0;
+  const everyoneHasVoted = totalParticipants > 0 && votesRemaining === 0;
 
   const handleExit = () => {
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   return (
     <ThemedView safeAndroid style={styles.container}>
+      <View style={styles.body} pointerEvents="box-none">
       {isCreator && voteId ? (
         <JoinRequestsHost
           voteId={voteId}
@@ -130,6 +137,7 @@ export default function VotingWaitingScreen() {
             <View style={[styles.bottomContainer, styles.bottomContainerButtonOnly]}>
               <PrimaryButton
                 onPress={handleGoToResults}
+                disabled={isOpeningResults}
                 style={styles.resultsButton}
                 textStyle={styles.resultsButtonText}
               >
@@ -161,6 +169,7 @@ export default function VotingWaitingScreen() {
             {isCreator && (
               <PrimaryButton
                 onPress={handleGoToResults}
+                disabled={isOpeningResults}
                 style={styles.resultsButton}
                 textStyle={styles.resultsButtonText}
               >
@@ -170,6 +179,7 @@ export default function VotingWaitingScreen() {
           </View>
         </>
       )}
+      </View>
       <ScreenBackButton variant="exit" onPress={handleExit} />
     </ThemedView>
   );
@@ -177,6 +187,9 @@ export default function VotingWaitingScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  body: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 100,

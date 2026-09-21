@@ -79,7 +79,8 @@ export async function pushData<T>(path: string, data: T): Promise<string | null>
 
 // Update specific fields at a path (doesn't overwrite entire object)
 export async function updateData(path: string, updates: Record<string, unknown>): Promise<void> {
-  const dbRef = getDbRef(path);
+  const trimmed = path.replace(/^\/+|\/+$/g, '');
+  const dbRef = trimmed ? getDbRef(trimmed) : ref(getDb());
   await update(dbRef, updates);
 }
 

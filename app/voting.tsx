@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -21,9 +21,11 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { normalizeMemberList } from '@/services/teams';
 import { restGet, restUpdatePaths } from '@/services/firebaseRest';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
+import { mvpVoteOptions } from '@/services/voteOptions';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
 
 interface Participant {
@@ -45,10 +47,7 @@ interface LobbyData {
 }
 
 export default function VotingScreen() {
-  const { voteId, from } = useLocalSearchParams<{
-    voteId?: string;
-    from?: string;
-  }>();
+  const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
   
   const [mvpName, setMvpName] = useState('');
@@ -57,6 +56,7 @@ export default function VotingScreen() {
   const [loserComment, setLoserComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
+  const [myName, setMyName] = useState('');
   const [voteType, setVoteType] = useState<'mvpOnly' | 'mvpAndLoser'>('mvpAndLoser');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [openDropdownCount, setOpenDropdownCount] = useState(0);
@@ -135,15 +135,16 @@ export default function VotingScreen() {
       if (!voteId) return;
       
       const lobbyData = await restGet<LobbyData>(`lobbies/${voteId}`);
+      const participants = await restGet<ParticipantsData>(`participants/${voteId}`);
+      const ownName = (user?.uid && participants?.[user.uid]?.name?.trim()) || '';
+      setMyName(ownName);
+
       const teamNames = normalizeMemberList(lobbyData?.teamMembers);
       if (teamNames.length > 0) {
         setParticipantNames(teamNames);
-      } else {
-        const participants = await restGet<ParticipantsData>(`participants/${voteId}`);
-        if (participants) {
-          const names = Object.values(participants).map(p => p.name);
-          setParticipantNames(names);
-        }
+      } else if (participants) {
+        const names = Object.values(participants).map(p => p.name);
+        setParticipantNames(names);
       }
       
       if (lobbyData?.voteType) {
@@ -166,6 +167,14 @@ export default function VotingScreen() {
     
     fetchData();
   }, [voteId, user?.uid]);
+
+  const mvpOptions = mvpVoteOptions(participantNames, myName);
+
+  useEffect(() => {
+    if (myName && mvpName === myName) {
+      setMvpName('');
+    }
+  }, [myName, mvpName]);
 
   useEffect(() => {
     if (!liveLobby?.status || !voteId) {
@@ -191,6 +200,11 @@ export default function VotingScreen() {
   const handleSubmit = async () => {
     if (!mvpName) {
       Alert.alert('Error', 'Please select the MVP');
+      return;
+    }
+
+    if (myName && mvpName.trim() === myName) {
+      Alert.alert('Error', 'You cannot vote for yourself as MVP.');
       return;
     }
     
@@ -276,7 +290,7 @@ export default function VotingScreen() {
   };
 
   const handleExit = () => {
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   return (
@@ -321,7 +335,7 @@ export default function VotingScreen() {
         <Text style={styles.sectionLabel}>Your MVP of the match</Text>
         <SelectDropdown
           value={mvpName}
-          options={participantNames}
+          options={mvpOptions}
           placeholder="Select the match MVP"
           onSelect={setMvpName}
           onOpenChange={handleDropdownOpenChange}

@@ -196,18 +196,54 @@ export async function restPut<T>(path: string, data: T): Promise<boolean> {
   return (await restPutDetailed(path, data)).ok;
 }
 
-export async function restPatch(
+async function patchWithSdkFallback(
+  path: string,
+  data: Record<string, unknown>,
+  restFailure: RestFailure
+): Promise<RestWriteResult> {
+  try {
+    const { updateData } = await import('@/services/database');
+    await updateData(path, data);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ...restFailure,
+      error: `${restFailure.error}\nSDK: ${formatCaughtError(error)}`,
+    };
+  }
+}
+
+export async function restPatchDetailed(
   path: string,
   data: Record<string, unknown>
-): Promise<boolean> {
+): Promise<RestWriteResult> {
   const result = await authedRequest(path, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
   if ('ok' in result && result.ok === false) {
-    return false;
+    return patchWithSdkFallback(path, data, result);
   }
-  return result.response.ok;
+
+  const body = await parseJson(result.response);
+  if (!result.response.ok) {
+    return patchWithSdkFallback(path, data, {
+      ok: false,
+      path,
+      method: 'PATCH',
+      status: result.response.status,
+      error: firebaseErrorMessage(body, result.response.statusText || 'Request failed'),
+    });
+  }
+
+  return { ok: true };
+}
+
+export async function restPatch(
+  path: string,
+  data: Record<string, unknown>
+): Promise<boolean> {
+  return (await restPatchDetailed(path, data)).ok;
 }
 
 export async function restDelete(path: string): Promise<boolean> {
