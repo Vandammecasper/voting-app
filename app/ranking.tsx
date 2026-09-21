@@ -65,7 +65,7 @@ function RankingItem({ entry, position, type }: {
 }
 
 export default function RankingScreen() {
-  const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
+  const { voteId } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { data: lobbyData, isLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
@@ -77,13 +77,8 @@ export default function RankingScreen() {
 
   const rankings = rankingsFromLobbyOrVotes(lobbyData, votesData);
 
-
   const handleFinish = () => {
-    if (from === 'history') {
-      router.replace('/history');
-    } else {
-      router.replace('/');
-    }
+    router.replace('/(tabs)');
   };
 
   if (isLoading) {

@@ -7,7 +7,8 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
-import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
+import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
+import { PressableScale } from '@/components/pressable-scale';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
@@ -17,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { restDelete, restGet, restPatch, restPut } from '@/services/firebaseRest';
+import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import {
   availableMemberNames,
   claimedNameSlotPath,
@@ -215,7 +217,8 @@ export default function WaitingRoomScreen() {
   const teamMode = isTeamLobby(lobbyData);
   const teamMembers = normalizeMemberList(lobbyData?.teamMembers);
   const votingIsOpen = teamMode || lobbyData?.status === 'voting';
-  const canStartVoting = Boolean(votingIsOpen || isCreator);
+  const showStartVoting = Boolean(teamMode || isCreator || lobbyData?.status === 'voting');
+  const showDraftVote = !teamMode;
   const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
     isCreator && voteId ? `joinRequests/${voteId}` : null,
     2000
@@ -260,7 +263,7 @@ export default function WaitingRoomScreen() {
       return;
     }
 
-    if (lobbyData.status === 'results') {
+    if (isResultsStatus(lobbyData.status)) {
       hasNavigated.current = true;
       router.replace({
         pathname: '/results',
@@ -269,7 +272,7 @@ export default function WaitingRoomScreen() {
       return;
     }
 
-    if (lobbyData.status === 'ranking' || lobbyData.status === 'completed') {
+    if (isPublishedRankingStatus(lobbyData.status)) {
       hasNavigated.current = true;
       router.replace({
         pathname: '/ranking',
@@ -496,7 +499,7 @@ export default function WaitingRoomScreen() {
 
   // Handle start voting button
   const handleStartVoting = async () => {
-    if (!voteId || !canStartVoting) return;
+    if (!voteId || !showStartVoting) return;
 
     if (votingIsOpen) {
       hasNavigated.current = true;
@@ -616,9 +619,21 @@ export default function WaitingRoomScreen() {
   return (
     <ThemedView safeAndroid style={styles.container}>
       <View style={styles.topSection}>
-        <SecondaryButton style={{ marginHorizontal: 56 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={handleCopyCode}>
-          {isCopied ? 'Copied!' : `ID: ${lobbyData?.code || 'Loading...'}`}
-        </SecondaryButton>
+        <PressableScale
+          onPress={handleCopyCode}
+          accessibilityRole="button"
+          accessibilityLabel="Copy lobby code"
+          style={styles.codeButton}
+        >
+          <Text
+            style={styles.codeText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {isCopied ? 'Copied!' : lobbyData?.code || '--------'}
+          </Text>
+        </PressableScale>
       </View>
 
       <View style={styles.centerSection}>
@@ -680,16 +695,14 @@ export default function WaitingRoomScreen() {
 
       <View style={styles.bottomSection}>
         {isCreator && voteId ? (
-          <View style={styles.joinRequestsWrap}>
-            <JoinRequestsPanel
-              voteId={voteId}
-              code={lobbyData?.code}
-              requests={joinRequests}
-            />
-          </View>
+          <JoinRequestsHost
+            voteId={voteId}
+            code={lobbyData?.code}
+            requests={joinRequests}
+          />
         ) : null}
         <View style={styles.buttonContainer}>
-          {canStartVoting && (
+          {showStartVoting && (
             <PrimaryButton 
               style={{ marginHorizontal: 24 }} 
               textStyle={{ fontSize: 24, fontWeight: 'bold' }} 
@@ -699,18 +712,20 @@ export default function WaitingRoomScreen() {
               {isStarting ? 'Starting...' : 'start voting'}
             </PrimaryButton>
           )}
-          <SecondaryButton
-            style={{ marginHorizontal: 24 }}
-            textStyle={{ fontSize: 18 }}
-            onPress={() => setShowDraftPanel(true)}
-          >
-            {hasSavedDraft ? 'edit draft vote' : 'draft vote'}
-          </SecondaryButton>
+          {showDraftVote ? (
+            <SecondaryButton
+              style={{ marginHorizontal: 24 }}
+              textStyle={{ fontSize: 18 }}
+              onPress={() => setShowDraftPanel(true)}
+            >
+              {hasSavedDraft ? 'edit draft vote' : 'draft vote'}
+            </SecondaryButton>
+          ) : null}
         </View>
       </View>
 
       <VoteDraftPanel
-        visible={showDraftPanel}
+        visible={showDraftVote && showDraftPanel}
         participantNames={participantNames}
         voteType={lobbyData?.voteType ?? 'mvpAndLoser'}
         initialDraft={voteDraft}
@@ -780,7 +795,7 @@ export default function WaitingRoomScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-      <ScreenBackButton onPress={handleExitLobby} />
+      <ScreenBackButton variant="exit" onPress={handleExitLobby} />
     </ThemedView>
   );
 }
@@ -794,6 +809,25 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     width: '100%',
     alignItems: 'center',
+  },
+  codeButton: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#6E92FF',
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codeText: {
+    width: '100%',
+    color: '#6E92FF',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 3,
+    textAlign: 'center',
+    fontFamily: defaultFontFamily,
   },
   centerSection: {
     flex: 1,

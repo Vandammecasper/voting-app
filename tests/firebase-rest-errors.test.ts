@@ -7,7 +7,7 @@ jest.mock('@/services/firebaseDatabaseUrl', () => ({
   getFirebaseDatabaseUrl: jest.fn(),
 }));
 
-import { formatCaughtError, formatRestFailure } from '@/services/firebaseRest';
+import { formatCaughtError, formatRestFailure, isTransientFetchError } from '@/services/firebaseRest';
 
 describe('firebase REST error formatting', () => {
   it('includes method, path, status, and the Firebase error body', () => {
@@ -32,6 +32,14 @@ describe('firebase REST error formatting', () => {
         error: 'Not signed in',
       })
     ).toBe('GET lobbyCodes (no response): Not signed in');
+  });
+
+  it('treats cancelled native fetches as a failed request instead of throwing', () => {
+    expect(
+      isTransientFetchError(
+        new RangeError("Failed to construct 'Response': The status provided (0) is outside the range [200, 599].")
+      )
+    ).toBe(true);
   });
 
   it('includes native Firebase error codes when present', () => {

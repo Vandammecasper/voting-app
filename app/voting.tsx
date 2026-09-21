@@ -14,7 +14,7 @@ import {
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
-import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
+import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { normalizeMemberList } from '@/services/teams';
 import { restGet, restUpdatePaths } from '@/services/firebaseRest';
+import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
 
 interface Participant {
@@ -63,6 +64,10 @@ export default function VotingScreen() {
   const [isCreator, setIsCreator] = useState(false);
   const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
     isCreator && voteId ? `joinRequests/${voteId}` : null,
+    2000
+  );
+  const { data: liveLobby } = usePolledRestData<LobbyData>(
+    voteId ? `lobbies/${voteId}` : null,
     2000
   );
   const scrollRef = useRef<ScrollView>(null);
@@ -161,6 +166,27 @@ export default function VotingScreen() {
     
     fetchData();
   }, [voteId, user?.uid]);
+
+  useEffect(() => {
+    if (!liveLobby?.status || !voteId) {
+      return;
+    }
+
+    if (isResultsStatus(liveLobby.status)) {
+      router.replace({
+        pathname: '/results',
+        params: { voteId, from },
+      });
+      return;
+    }
+
+    if (isPublishedRankingStatus(liveLobby.status)) {
+      router.replace({
+        pathname: '/ranking',
+        params: { voteId, from },
+      });
+    }
+  }, [liveLobby?.status, voteId, from]);
 
   const handleSubmit = async () => {
     if (!mvpName) {
@@ -284,13 +310,11 @@ export default function VotingScreen() {
         />
 
         {isCreator && voteId && (
-          <View style={styles.joinRequestsWrap}>
-            <JoinRequestsPanel
-              voteId={voteId}
-              code={lobbyCode}
-              requests={joinRequests}
-            />
-          </View>
+          <JoinRequestsHost
+            voteId={voteId}
+            code={lobbyCode}
+            requests={joinRequests}
+          />
         )}
 
         {/* MVP Section */}
@@ -386,7 +410,7 @@ export default function VotingScreen() {
           </PrimaryButton>
         </View>
       </KeyboardAvoidingView>
-      <ScreenBackButton onPress={handleExit} />
+      <ScreenBackButton variant="exit" onPress={handleExit} />
     </ThemedView>
   );
 }

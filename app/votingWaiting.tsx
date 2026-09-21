@@ -4,13 +4,14 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
-import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
+import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { restPatch } from '@/services/firebaseRest';
+import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 
 interface Participant {
   name: string;
@@ -60,11 +61,23 @@ export default function VotingWaitingScreen() {
   const votesSubmitted = receiptsData ? Object.keys(receiptsData).length : 0;
   const votesRemaining = totalParticipants - votesSubmitted;
 
-  // Auto-navigate to results when status changes
+  // Auto-navigate when the host opens results or publishes the ranking
   useEffect(() => {
-    if (lobbyData?.status === 'results' && voteId) {
+    if (!lobbyData?.status || !voteId) {
+      return;
+    }
+
+    if (isResultsStatus(lobbyData.status)) {
       router.replace({
         pathname: '/results',
+        params: { voteId, from },
+      });
+      return;
+    }
+
+    if (isPublishedRankingStatus(lobbyData.status)) {
+      router.replace({
+        pathname: '/ranking',
         params: { voteId, from },
       });
     }
@@ -94,13 +107,11 @@ export default function VotingWaitingScreen() {
   return (
     <ThemedView safeAndroid style={styles.container}>
       {isCreator && voteId ? (
-        <View style={styles.joinRequestsWrap}>
-          <JoinRequestsPanel
-            voteId={voteId}
-            code={lobbyData?.code}
-            requests={joinRequests}
-          />
-        </View>
+        <JoinRequestsHost
+          voteId={voteId}
+          code={lobbyData?.code}
+          requests={joinRequests}
+        />
       ) : null}
       {everyoneHasVoted ? (
         <>
@@ -159,7 +170,7 @@ export default function VotingWaitingScreen() {
           </View>
         </>
       )}
-      <ScreenBackButton onPress={handleExit} />
+      <ScreenBackButton variant="exit" onPress={handleExit} />
     </ThemedView>
   );
 }

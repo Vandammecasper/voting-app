@@ -12,6 +12,7 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { restGet, restPatch } from '@/services/firebaseRest';
+import { isPublishedRankingStatus } from '@/services/lobbyFlow';
 import { calculateRankings } from '@/services/voteRankings';
 
 interface LobbyData {
@@ -76,9 +77,9 @@ export default function ResultsScreen() {
     fetchData();
   }, [voteId, user, lobbyData]);
 
-  // Auto-navigate to ranking when status changes
+  // Auto-navigate to ranking when the host publishes it
   useEffect(() => {
-    if (lobbyData?.status === 'ranking' && voteId) {
+    if (isPublishedRankingStatus(lobbyData?.status) && voteId) {
       router.replace({
         pathname: '/ranking',
         params: { voteId, from },
@@ -161,10 +162,10 @@ export default function ResultsScreen() {
             style={styles.waitingTitle}
           />
           <Text style={styles.waitingSubtitle}>
-            The host is reading the voting results to the group. You can go back if you need to leave.
+            The host is reading the votes to the group. You will see the ranking as soon as they finish.
           </Text>
         </View>
-        <ScreenBackButton onPress={() => router.replace('/')} />
+        <ScreenBackButton variant="exit" onPress={() => router.replace('/')} />
       </ThemedView>
     );
   }
@@ -254,7 +255,7 @@ export default function ResultsScreen() {
           )}
         </View>
       </ScrollView>
-      <ScreenBackButton onPress={handleExit} />
+      <ScreenBackButton variant="exit" onPress={handleExit} />
     </ThemedView>
   );
 }

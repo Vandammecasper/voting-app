@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Href, router } from 'expo-router';
+import { Href, router, useFocusEffect } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -40,16 +40,17 @@ export default function TeamsScreen() {
     }
   }, [user?.uid]);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    loadTeams().finally(() => {
-      if (!cancelled) setIsLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadTeams]);
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+      loadTeams().finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [loadTeams])
+  );
 
   const onRefresh = React.useCallback(async () => {
     refreshGuard.suppressPresses();

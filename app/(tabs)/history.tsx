@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -189,7 +189,7 @@ export default function HistoryScreen() {
   const [showUpdatedToast, setShowUpdatedToast] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchHistory = async (isRefresh = false) => {
+  const fetchHistory = useCallback(async (isRefresh = false) => {
     if (!user) {
       setIsLoading(false);
       return;
@@ -252,11 +252,13 @@ export default function HistoryScreen() {
         setTimeout(() => setShowUpdatedToast(false), 2000);
       }
     }
-  };
-
-  useEffect(() => {
-    fetchHistory();
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchHistory();
+    }, [fetchHistory])
+  );
 
   const handleRefresh = () => {
     refreshGuard.suppressPresses();

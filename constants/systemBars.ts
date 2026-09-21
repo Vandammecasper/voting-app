@@ -15,6 +15,11 @@ export const statusBarProps = {
 
 export const rootStackScreenOptions = {
   contentStyle: { backgroundColor: rootBackgroundColor },
+  headerStyle: { backgroundColor: rootBackgroundColor },
+  headerTintColor: Colors.text,
+  headerShadowVisible: false,
+  headerBackVisible: false,
+  headerTransparent: true,
   statusBarStyle: 'light',
   statusBarTranslucent: true,
   navigationBarTranslucent: true,

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import React from 'react';
 import {
   Alert,
@@ -216,28 +217,24 @@ function FeatureRequestsScreenInner() {
     setError(null);
   }, []);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-    restGet<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH)
-      .then((raw) => {
-        if (!cancelled) {
-          setList(buildListFromData(raw ?? null));
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setList([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+      fetchFeatureRequests()
+        .catch((err) => {
+          if (!cancelled) {
+            setError(err instanceof Error ? err : new Error(String(err)));
+            setList([]);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [fetchFeatureRequests])
+  );
 
   const onRefresh = React.useCallback(async () => {
     refreshGuard.suppressPresses();

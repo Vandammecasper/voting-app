@@ -57,6 +57,16 @@ export function formatCaughtError(error: unknown): string {
   return String(error);
 }
 
+export function isTransientFetchError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('status provided (0)') ||
+    message.includes('Failed to construct \'Response\'') ||
+    message.includes('Aborted') ||
+    message.includes('Network request failed')
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
@@ -124,7 +134,9 @@ async function authedRequest(
       path,
       method,
       status: null,
-      error: formatCaughtError(error),
+      error: isTransientFetchError(error)
+        ? 'Request was cancelled'
+        : formatCaughtError(error),
     };
   }
 }

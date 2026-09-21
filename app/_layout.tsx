@@ -50,8 +50,19 @@ const tabsStackScreen = {
 
 const flowStackScreen = {
   headerShown: false,
-  gestureEnabled: true,
-  fullScreenGestureEnabled: true,
+  headerBackVisible: false,
+  headerTransparent: true,
+  headerStyle: { backgroundColor: Colors.background },
+  headerTintColor: Colors.text,
+  headerShadowVisible: false,
+  headerLeft: () => null,
+  headerRight: () => null,
+  contentStyle: { backgroundColor: Colors.background },
+  // Exit is the only way out of a live vote; the iOS back control/gesture
+  // otherwise stays on the stack and looks like a Back button.
+  gestureEnabled: false,
+  fullScreenGestureEnabled: false,
+  animation: 'slide_from_right',
 } as const;
 
 function RootLayoutNav() {
@@ -77,7 +88,14 @@ function RootLayoutNav() {
         <Stack.Protected guard={onboarded}>
           <Stack.Screen name="(tabs)" options={tabsStackScreen} />
           <Stack.Screen name="waitingRoom" options={flowStackScreen} />
-          <Stack.Screen name="userInput" options={flowStackScreen} />
+          <Stack.Screen
+            name="userInput"
+            options={{
+              ...flowStackScreen,
+              gestureEnabled: true,
+              fullScreenGestureEnabled: true,
+            }}
+          />
           <Stack.Screen name="voting" options={flowStackScreen} />
           <Stack.Screen name="votingWaiting" options={flowStackScreen} />
           <Stack.Screen name="results" options={flowStackScreen} />

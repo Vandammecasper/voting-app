@@ -51,8 +51,7 @@ describe('Android fluid UI contracts', () => {
     expect(layout).toContain('Stack.Protected');
     expect(layout).toContain('gestureEnabled: false');
     expect(layout).toContain("name=\"(tabs)\"");
-    expect(layout).toContain('fullScreenGestureEnabled: true');
-    expect(layout).not.toContain('fullScreenGestureEnabled: false');
+    expect(layout).toContain('fullScreenGestureEnabled: false');
     expect(layout).not.toContain('unstable-native-tabs');
   });
 
@@ -107,5 +106,18 @@ describe('Android fluid UI contracts', () => {
     const style = StyleSheet.flatten(tree.props.style);
 
     expect(style?.top).toBe(insets.top);
+  });
+
+  it('places Exit on the top-right of vote-flow screens', async () => {
+    setPlatform('ios');
+
+    const { toJSON } = await render(
+      <ScreenBackButton variant="exit" onPress={() => {}} />
+    );
+    const tree = toJSON() as { props: { style: unknown } };
+    const style = StyleSheet.flatten(tree.props.style);
+
+    expect(style?.right).toBe(8);
+    expect(style?.left).toBeUndefined();
   });
 });
