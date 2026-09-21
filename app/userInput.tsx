@@ -8,11 +8,17 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { generateLobbyCode } from '@/services/database';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { usePolledRestData } from '@/hooks/usePolledRestData';
+import type { JoinRequest } from '@/components/join-requests-panel';
 import {
-  claimedParticipantNames,
+  generateLobbyCode,
+  LOBBY_CODE_LENGTH,
+  LobbyCodeMapping,
+} from '@/services/database';
+import { restDelete, restGet, restPush, restPut } from '@/services/firebaseRest';
+import {
+  availableMemberNames,
+  claimedNameSet,
   isTeamLobby,
   listTeams,
   MIN_TEAM_MEMBERS,
@@ -22,115 +28,57 @@ import {
 } from '@/services/teams';
 import { router, useLocalSearchParams } from 'expo-router';
 
-const DATABASE_URL = getFirebaseDatabaseUrl();
-
-type JoinableLobbyStatus = 'waiting' | 'voting';
-
 interface JoinableLobbyData {
   status: string;
   creatorId?: string;
   teamName?: string;
   teamMembers?: string[] | Record<string, string>;
+  claimedNames?: Record<string, string> | string[];
 }
 
 interface ParticipantData {
   name: string;
   joinedAt: number;
-  isCreator: boolean;
   nameChangeRequested?: boolean;
 }
 
-function isJoinableLobbyStatus(status: string): status is JoinableLobbyStatus {
+function lobbyIdFromCodeMapping(value: LobbyCodeMapping | string | null): string | null {
+  if (typeof value === 'string' && value) {
+    return value;
+  }
+  if (value && typeof value === 'object' && typeof value.lobbyId === 'string') {
+    return value.lobbyId;
+  }
+  return null;
+}
+
+function joinPreviewFromMapping(
+  mapping: LobbyCodeMapping | string | null
+): JoinableLobbyData | null {
+  if (!mapping || typeof mapping === 'string') {
+    return null;
+  }
+  return {
+    status: mapping.status,
+    teamName: mapping.teamName,
+    teamMembers: mapping.teamMembers,
+    claimedNames: mapping.claimedNames,
+  };
+}
+
+function isOpenJoinStatus(status: string): boolean {
   return status === 'waiting' || status === 'voting';
 }
 
-// Helper to read data using REST API (bypasses SDK issues)
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      console.error('❌ No authenticated user for REST call');
-      return null;
+async function allocateLobbyCode(): Promise<string | null> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = generateLobbyCode();
+    const existing = await restGet(`lobbyCodes/${code}`);
+    if (existing == null) {
+      return code;
     }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error(`❌ REST error: ${response.status} ${response.statusText}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    console.error(`❌ REST fetch error:`, error);
-    return null;
   }
-}
-
-// Helper to write data using REST API (bypasses SDK issues)
-async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      console.error('❌ No authenticated user for REST write');
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      console.error(`❌ REST write error: ${response.status} ${response.statusText}`);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`❌ REST write error:`, error);
-    return false;
-  }
-}
-
-// Helper to push data using REST API (creates new entry with generated key)
-async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      console.error('❌ No authenticated user for REST push');
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      console.error(`❌ REST push error: ${response.status} ${response.statusText}`);
-      return null;
-    }
-    
-    const result = await response.json();
-    return result.name; // Firebase returns { name: "generated-key" }
-  } catch (error) {
-    console.error(`❌ REST push error:`, error);
-    return null;
-  }
+  return null;
 }
 
 export default function UserInputScreen() {
@@ -146,13 +94,27 @@ export default function UserInputScreen() {
   const [teams, setTeams] = useState<UserTeamWithId[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [joinLobby, setJoinLobby] = useState<JoinableLobbyData | null>(null);
-  const [joinTakenNames, setJoinTakenNames] = useState<string[]>([]);
+  const [alreadyMember, setAlreadyMember] = useState(false);
+  const [pendingJoin, setPendingJoin] = useState<{ lobbyId: string } | null>(null);
   const { user } = useAuth();
 
   const availableTeams = useMemo(() => usableTeams(teams), [teams]);
   const selectedTeam = availableTeams.find((team) => team.id === selectedTeamId) ?? null;
   const joinTeamMembers = normalizeMemberList(joinLobby?.teamMembers);
+  const availableJoinNames = useMemo(
+    () => availableMemberNames(joinTeamMembers, claimedNameSet(joinLobby?.claimedNames)),
+    [joinTeamMembers, joinLobby?.claimedNames]
+  );
   const isJoinTeamLobby = isJoinMode && isTeamLobby(joinLobby);
+  const { data: pendingRequest } = usePolledRestData<JoinRequest>(
+    pendingJoin && user?.uid ? `joinRequests/${pendingJoin.lobbyId}/${user.uid}` : null,
+    2000
+  );
+  const normalizedJoinCode = lobbyCode.trim().toUpperCase();
+  const { data: polledJoinMapping } = usePolledRestData<LobbyCodeMapping | string>(
+    isJoinMode && normalizedJoinCode.length >= 6 ? `lobbyCodes/${normalizedJoinCode}` : null,
+    2000
+  );
 
   useEffect(() => {
     if (isJoinMode || !user?.uid) return;
@@ -173,51 +135,41 @@ export default function UserInputScreen() {
   useEffect(() => {
     if (!isJoinMode) return;
 
-    const code = lobbyCode.trim();
-    if (code.length !== 6) {
+    const lobbyId = lobbyIdFromCodeMapping(polledJoinMapping);
+    const preview = joinPreviewFromMapping(polledJoinMapping);
+    if (!lobbyId || !preview || !isOpenJoinStatus(preview.status)) {
       setJoinLobby(null);
-      setJoinTakenNames([]);
+      setAlreadyMember(false);
       return;
     }
 
-    let cancelled = false;
-
-    async function lookupLobby() {
-      const lobbyId = await readViaRest<string>(`lobbyCodes/${code}`);
-      if (cancelled) return;
-      if (!lobbyId) {
-        setJoinLobby(null);
-        setJoinTakenNames([]);
-        return;
-      }
-
-      const [lobbyData, participants] = await Promise.all([
-        readViaRest<JoinableLobbyData>(`lobbies/${lobbyId}`),
-        readViaRest<Record<string, ParticipantData>>(`participants/${lobbyId}`),
-      ]);
-      if (cancelled) return;
-
-      setJoinLobby(lobbyData);
-      const claimed = claimedParticipantNames(participants, user?.uid);
-      setJoinTakenNames([...claimed]);
-
-      if (isTeamLobby(lobbyData) && user?.uid) {
-        const existingName = participants?.[user.uid]?.name?.trim();
-        const members = normalizeMemberList(lobbyData?.teamMembers);
-        if (existingName && members.includes(existingName)) {
-          setName(existingName);
-        } else {
-          setName('');
-        }
-      }
+    if (isTeamLobby(preview)) {
+      const available = availableMemberNames(
+        normalizeMemberList(preview.teamMembers),
+        claimedNameSet(preview.claimedNames)
+      );
+      setName((current) => (current && available.includes(current) ? current : ''));
     }
 
-    lookupLobby();
+    setJoinLobby((current) => ({
+      ...preview,
+      creatorId: current?.creatorId,
+    }));
+
+    let cancelled = false;
+    restGet(`lobbies/${lobbyId}`).then((existingLobby) => {
+      if (cancelled) return;
+      setJoinLobby({
+        ...preview,
+        creatorId: (existingLobby as JoinableLobbyData | null)?.creatorId,
+      });
+      setAlreadyMember(existingLobby != null);
+    });
+
     return () => {
       cancelled = true;
     };
-    // name is intentionally omitted: lookup should not re-run when the user picks a name
-  }, [isJoinMode, lobbyCode, user?.uid]);
+  }, [isJoinMode, polledJoinMapping, user?.uid]);
 
   const handleToggleUseTeam = () => {
     setUseTeam((current) => {
@@ -256,17 +208,19 @@ export default function UserInputScreen() {
     setIsCreating(true);
 
     try {
-      // Generate a 6-digit code for the lobby
-      const code = generateLobbyCode();
-      
-      // Create a new lobby/voting session using REST API
+      const code = await allocateLobbyCode();
+      if (!code) {
+        Alert.alert("Couldn't create lobby", 'Please try again.');
+        return;
+      }
+
       const lobbyData = {
         creatorId: user.uid,
         creatorName: name.trim(),
         createdAt: Date.now(),
-        status: 'waiting',
+        status: 'waiting' as const,
         code,
-        voteType, // 'mvpOnly' or 'mvpAndLoser'
+        voteType,
         ...(useTeam && selectedTeam
           ? {
               teamName: selectedTeam.name,
@@ -275,7 +229,7 @@ export default function UserInputScreen() {
           : {}),
       };
 
-      const lobbyId = await pushViaRest('lobbies', lobbyData);
+      const lobbyId = await restPush('lobbies', lobbyData);
       
       if (!lobbyId) {
         console.error('❌ Failed to create lobby');
@@ -283,16 +237,33 @@ export default function UserInputScreen() {
         return;
       }
 
-      await writeViaRest(`lobbyCodes/${code}`, lobbyId);
+      const codeMapping: LobbyCodeMapping = {
+        lobbyId,
+        status: 'waiting',
+        voteType,
+        claimedNames: { [user.uid]: name.trim() },
+        ...(useTeam && selectedTeam
+          ? {
+              teamName: selectedTeam.name,
+              teamMembers: selectedTeam.members,
+            }
+          : {}),
+      };
+
+      const codeWrite = await restPut(`lobbyCodes/${code}`, codeMapping);
+      if (!codeWrite) {
+        Alert.alert("Couldn't create lobby", 'Please try again.');
+        return;
+      }
       
-      await writeViaRest(`participants/${lobbyId}/${user.uid}`, {
+      await restPut(`participants/${lobbyId}/${user.uid}`, {
         name: name.trim(),
         joinedAt: Date.now(),
-        isCreator: true,
       });
 
-      // Track participation in user history
-      await writeViaRest(`userHistory/${user.uid}/${lobbyId}`, {
+      await restPut(`lobbyCodes/${code}/claimedNames/${user.uid}`, name.trim());
+
+      await restPut(`userHistory/${user.uid}/${lobbyId}`, {
         lobbyId,
         joinedAt: Date.now(),
       });
@@ -310,96 +281,98 @@ export default function UserInputScreen() {
   };
 
   const handleJoin = async () => {
-    
-    if (!name.trim() || !lobbyCode.trim()) {
+    if (!user) {
+      console.error('❌ No user found');
+      return;
+    }
+
+    if (!alreadyMember && !name.trim()) {
       return;
     }
     
-    if (!user) {
-      console.error('❌ No user found');
+    if (!lobbyCode.trim()) {
       return;
     }
 
     setIsJoining(true);
 
     try {
-      const lobbyId = await readViaRest<string>(`lobbyCodes/${lobbyCode.trim()}`);
+      const code = lobbyCode.trim().toUpperCase();
+      const mapping = await restGet<LobbyCodeMapping | string>(`lobbyCodes/${code}`);
+      const lobbyId = lobbyIdFromCodeMapping(mapping);
+      const lobbyData = joinPreviewFromMapping(mapping);
 
-      if (!lobbyId) {
+      if (!lobbyId || !lobbyData) {
         console.error('❌ No lobby found with this code');
         Alert.alert("Couldn't find lobby", 'Check the code and try again.');
         return;
       }
 
-      const lobbyData = await readViaRest<JoinableLobbyData>(`lobbies/${lobbyId}`);
-
-      if (!lobbyData) {
-        console.error('❌ Lobby data not found');
-        Alert.alert("Couldn't find lobby", 'Please try again.');
+      const existingLobby = await restGet<JoinableLobbyData>(`lobbies/${lobbyId}`);
+      if (existingLobby) {
+        await restPut(`userHistory/${user.uid}/${lobbyId}`, {
+          lobbyId,
+          joinedAt: Date.now(),
+        });
+        const existingVote = await restGet(`votes/${lobbyId}/${user.uid}`);
+        router.push({
+          pathname: existingVote ? '/votingWaiting' : '/waitingRoom',
+          params: { voteId: lobbyId },
+        });
         return;
       }
 
-      if (!isJoinableLobbyStatus(lobbyData.status)) {
+      if (!isOpenJoinStatus(lobbyData.status)) {
         console.error('❌ Lobby is not accepting participants');
         Alert.alert("Can't join this lobby", 'This lobby is no longer accepting participants.');
         return;
       }
 
       if (isTeamLobby(lobbyData)) {
-        const members = normalizeMemberList(lobbyData.teamMembers);
-        if (!members.includes(name.trim())) {
-          Alert.alert('Pick a team name', 'Please pick your name from the team list.');
-          return;
-        }
-
-        const participants = await readViaRest<Record<string, ParticipantData>>(`participants/${lobbyId}`);
-        const claimed = claimedParticipantNames(participants, user.uid);
-        if (claimed.has(name.trim())) {
-          Alert.alert('Name taken', 'That name is already in use. Please pick another.');
-          setJoinTakenNames([...claimed]);
+        const available = availableMemberNames(
+          normalizeMemberList(lobbyData.teamMembers),
+          claimedNameSet(lobbyData.claimedNames)
+        );
+        if (!available.includes(name.trim())) {
+          Alert.alert('Pick a team name', 'Please pick an available name from the team list.');
           return;
         }
       }
 
-      const existingParticipant = await readViaRest<ParticipantData>(`participants/${lobbyId}/${user.uid}`);
+      if (lobbyData.status === 'voting') {
+        const requestOk = await restPut(`joinRequests/${lobbyId}/${user.uid}`, {
+          name: name.trim(),
+          requestedAt: Date.now(),
+          status: 'pending',
+        });
+        if (!requestOk) {
+          Alert.alert("Couldn't send request", 'Please try again.');
+          return;
+        }
+        setPendingJoin({ lobbyId });
+        return;
+      }
+
       const participantData: ParticipantData = {
-        ...existingParticipant,
         name: name.trim(),
-        joinedAt: existingParticipant?.joinedAt ?? Date.now(),
-        isCreator: existingParticipant?.isCreator ?? lobbyData.creatorId === user.uid,
+        joinedAt: Date.now(),
         nameChangeRequested: false,
       };
 
-      const writeSuccess = await writeViaRest(`participants/${lobbyId}/${user.uid}`, participantData);
+      const writeSuccess = await restPut(`participants/${lobbyId}/${user.uid}`, participantData);
       
       if (!writeSuccess) {
         console.error('❌ Failed to add participant');
         Alert.alert("Couldn't join lobby", 'Please try again.');
         return;
       }
-      
-      // Track participation in user history
-      await writeViaRest(`userHistory/${user.uid}/${lobbyId}`, {
+
+      await restPut(`lobbyCodes/${code}/claimedNames/${user.uid}`, name.trim());
+
+      await restPut(`userHistory/${user.uid}/${lobbyId}`, {
         lobbyId,
         joinedAt: Date.now(),
       });
-
-      if (lobbyData.status === 'voting') {
-        const existingVote = await readViaRest(`votes/${lobbyId}/${user.uid}`);
-        if (existingVote) {
-          router.push({
-            pathname: '/votingWaiting',
-            params: { voteId: lobbyId },
-          });
-          return;
-        }
-
-        router.push({
-          pathname: '/voting',
-          params: { voteId: lobbyId },
-        });
-        return;
-      }
 
       router.push({
         pathname: '/waitingRoom',
@@ -412,6 +385,56 @@ export default function UserInputScreen() {
       setIsJoining(false);
     }
   };
+
+  useEffect(() => {
+    if (!pendingJoin || !user?.uid || !pendingRequest) {
+      return;
+    }
+    if (pendingRequest.status === 'approved') {
+      const lobbyId = pendingJoin.lobbyId;
+      setPendingJoin(null);
+      restPut(`userHistory/${user.uid}/${lobbyId}`, {
+        lobbyId,
+        joinedAt: Date.now(),
+      }).finally(() => {
+        router.push({
+          pathname: '/waitingRoom',
+          params: { voteId: lobbyId },
+        });
+      });
+      return;
+    }
+    if (pendingRequest.status === 'denied') {
+      const lobbyId = pendingJoin.lobbyId;
+      setPendingJoin(null);
+      restDelete(`joinRequests/${lobbyId}/${user.uid}`);
+      Alert.alert('Request declined', 'The host declined your request to join.');
+    }
+  }, [pendingJoin, pendingRequest, user?.uid]);
+
+  const handleCancelJoinRequest = async () => {
+    if (pendingJoin && user?.uid) {
+      await restDelete(`joinRequests/${pendingJoin.lobbyId}/${user.uid}`);
+    }
+    setPendingJoin(null);
+  };
+
+  if (pendingJoin) {
+    return (
+      <ThemedView safeAndroid style={styles.container}>
+        <View style={styles.pendingWrap}>
+          <Text style={styles.title}>Waiting for the host</Text>
+          <Text style={styles.pendingSubtitle}>
+            Your request to join has been sent. You can enter the vote once the host admits you.
+          </Text>
+          <View style={styles.buttonContainer}>
+            <PrimaryButton onPress={handleCancelJoinRequest}>Cancel request</PrimaryButton>
+          </View>
+        </View>
+        <ScreenBackButton onPress={handleCancelJoinRequest} />
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView safeAndroid style={styles.container}>
@@ -444,9 +467,10 @@ export default function UserInputScreen() {
               placeholder="Enter lobby code"
               placeholderTextColor={Colors.placeholder}
               value={lobbyCode}
-              onChangeText={(text) => setLobbyCode(text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={6}
+              onChangeText={(text) => setLobbyCode(text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={LOBBY_CODE_LENGTH}
             />
           )}
 
@@ -509,10 +533,12 @@ export default function UserInputScreen() {
               <View style={styles.dropdownWrap}>
                 <SelectDropdown
                   value={name}
-                  options={joinTeamMembers}
-                  placeholder="Select your name"
+                  options={availableJoinNames}
+                  placeholder={
+                    availableJoinNames.length > 0 ? 'Select your name' : 'No names left'
+                  }
                   onSelect={setName}
-                  disabledOptions={joinTakenNames}
+                  disabled={availableJoinNames.length === 0}
                 />
               </View>
             </View>
@@ -557,12 +583,22 @@ export default function UserInputScreen() {
               disabled={
                 isCreating ||
                 isJoining ||
-                !name.trim() ||
                 (isJoinMode && !lobbyCode.trim()) ||
+                (isJoinMode && !alreadyMember && !name.trim()) ||
+                (isJoinMode && isJoinTeamLobby && !alreadyMember && availableJoinNames.length === 0) ||
+                (!isJoinMode && !name.trim()) ||
                 (!isJoinMode && useTeam && !selectedTeam)
               }
             >
-              {isCreating || isJoining ? 'Loading...' : (isJoinMode ? 'Join' : 'Create')}
+              {isCreating || isJoining
+                ? 'Loading...'
+                : isJoinMode
+                  ? alreadyMember
+                    ? 'Rejoin'
+                    : joinLobby?.status === 'voting'
+                      ? 'Request to join'
+                      : 'Join'
+                  : 'Create'}
             </PrimaryButton>
           </View>
           </ScrollView>
@@ -647,6 +683,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6E92FF',
     marginTop: 200,
+  },
+  pendingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 48,
+  },
+  pendingSubtitle: {
+    color: Colors.icon,
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 12,
+    fontFamily: defaultFontFamily,
   },
   buttonContainer: {
     marginTop: 32,

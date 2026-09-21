@@ -7,8 +7,72 @@
     "lobbies": {
       ".indexOn": ["code"],
       "$lobbyId": {
+        ".read": "auth != null && (data.child('creatorId').val() === auth.uid || root.child('participants/' + $lobbyId + '/' + auth.uid).exists())",
+        ".write": "auth != null && ((!data.exists() && newData.exists() && newData.child('creatorId').val() === auth.uid) || (data.exists() && data.child('creatorId').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['creatorId', 'creatorName', 'createdAt', 'status', 'code', 'voteType']) && newData.child('creatorId').isString() && newData.child('creatorName').isString() && newData.child('creatorName').val().length > 0 && newData.child('creatorName').val().length <= 40 && newData.child('createdAt').isNumber() && newData.child('code').isString() && newData.child('code').val().length > 0 && newData.child('code').val().length <= 8 && (newData.child('voteType').val() === 'mvpOnly' || newData.child('voteType').val() === 'mvpAndLoser') && (newData.child('status').val() === 'waiting' || newData.child('status').val() === 'voting' || newData.child('status').val() === 'results' || newData.child('status').val() === 'ranking') && (!newData.hasChild('teamName') || (newData.child('teamName').isString() && newData.child('teamName').val().length > 0 && newData.child('teamName').val().length <= 40)) && (!data.exists() || (newData.child('creatorId').val() === data.child('creatorId').val() && newData.child('code').val() === data.child('code').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('voteType').val() === data.child('voteType').val() && newData.child('creatorName').val() === data.child('creatorName').val() && ((!data.hasChild('teamName') && !newData.hasChild('teamName')) || newData.child('teamName').val() === data.child('teamName').val()) && ((!data.hasChild('teamMembers') && !newData.hasChild('teamMembers')) || newData.child('teamMembers').val() === data.child('teamMembers').val()))) && (data.exists() || (newData.child('status').val() === 'waiting' && newData.child('creatorId').val() === auth.uid && newData.child('code').val().matches(/^[A-Z0-9]{8}$/) && !newData.hasChild('mvpRanking') && !newData.hasChild('loserRanking')))",
+        "teamMembers": {
+          "$i": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          }
+        },
+        "mvpRanking": {
+          "$i": {
+            ".validate": "newData.hasChildren(['name', 'votes']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('votes').isNumber()"
+          }
+        },
+        "loserRanking": {
+          "$i": {
+            ".validate": "newData.hasChildren(['name', 'votes']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('votes').isNumber()"
+          }
+        }
+      }
+    },
+    "participants": {
+      "$lobbyId": {
+        ".read": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid || root.child('participants/' + $lobbyId + '/' + auth.uid).exists())",
+        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
+        "$userId": {
+          ".write": "auth != null && ((root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid) || (auth.uid === $userId && ((!data.exists() && newData.exists() && root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && (root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).child('lobbyId').val() === $lobbyId || root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).val() === $lobbyId)) || (data.exists() && newData.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists()) || (data.exists() && !newData.exists()))))",
+          ".validate": "newData.hasChildren(['name', 'joinedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('joinedAt').isNumber() && !newData.hasChild('isCreator') && (!newData.hasChild('nameChangeRequested') || newData.child('nameChangeRequested').isBoolean())"
+        }
+      }
+    },
+    "votes": {
+      "$lobbyId": {
+        ".read": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
+        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && !newData.exists()",
+        "$userId": {
+          ".read": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
+          ".write": "auth != null && auth.uid === $userId && !data.exists() && newData.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))",
+          ".validate": "newData.hasChildren(['mvpName', 'mvpComment', 'submittedAt']) && newData.child('mvpName').isString() && newData.child('mvpName').val().length > 0 && newData.child('mvpName').val().length <= 40 && newData.child('mvpComment').isString() && newData.child('mvpComment').val().length > 0 && newData.child('mvpComment').val().length <= 2000 && newData.child('submittedAt').isNumber() && (!newData.hasChild('loserName') || (newData.child('loserName').isString() && newData.child('loserName').val().length > 0 && newData.child('loserName').val().length <= 40)) && (!newData.hasChild('loserComment') || (newData.child('loserComment').isString() && newData.child('loserComment').val().length > 0 && newData.child('loserComment').val().length <= 2000))"
+        }
+      }
+    },
+    "voteReceipts": {
+      "$lobbyId": {
+        ".read": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid || root.child('participants/' + $lobbyId + '/' + auth.uid).exists())",
+        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && !newData.exists()",
+        "$userId": {
+          ".write": "auth != null && auth.uid === $userId && !data.exists() && newData.exists() && newData.isBoolean() && newData.val() === true && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))"
+        }
+      }
+    },
+    "lobbyCodes": {
+      "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('creatorId').val() === auth.uid)"
+        ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('lobbies/' + newData.child('lobbyId').val() + '/creatorId').val() === auth.uid && root.child('lobbies/' + newData.child('lobbyId').val() + '/code').val() === $code) || (data.exists() && newData.exists() && root.child('lobbies/' + data.child('lobbyId').val() + '/creatorId').val() === auth.uid && newData.child('lobbyId').val() === data.child('lobbyId').val()) || (data.exists() && !newData.exists() && root.child('lobbies/' + data.child('lobbyId').val() + '/creatorId').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['lobbyId', 'status']) && newData.child('lobbyId').isString() && newData.child('lobbyId').val().length > 0 && (newData.child('status').val() === 'waiting' || newData.child('status').val() === 'voting' || newData.child('status').val() === 'results' || newData.child('status').val() === 'ranking') && (!newData.hasChild('voteType') || newData.child('voteType').val() === 'mvpOnly' || newData.child('voteType').val() === 'mvpAndLoser') && (!newData.hasChild('teamName') || (newData.child('teamName').isString() && newData.child('teamName').val().length <= 40)) && (!newData.hasChild('teamMembers') || newData.child('teamMembers').hasChildren()) && (!newData.hasChild('claimedNames') || newData.child('claimedNames').hasChildren())",
+        "teamMembers": {
+          "$i": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          }
+        },
+        "claimedNames": {
+          "$userId": {
+            ".write": "auth != null && ((!newData.exists() && (auth.uid === $userId || root.child('lobbies').child(root.child('lobbyCodes').child($code).child('lobbyId').val()).child('creatorId').val() === auth.uid)) || (newData.exists() && ((auth.uid === $userId && root.child('participants').child(root.child('lobbyCodes').child($code).child('lobbyId').val()).child(auth.uid).exists()) || root.child('lobbies').child(root.child('lobbyCodes').child($code).child('lobbyId').val()).child('creatorId').val() === auth.uid || root.child('lobbies').child(newData.parent().parent().child('lobbyId').val()).child('creatorId').val() === auth.uid)))",
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          }
+        }
       }
     },
     "joinRequests": {
@@ -16,54 +80,43 @@
         ".read": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
         "$userId": {
           ".read": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
-          ".write": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)"
+          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.uid === $userId && newData.child('status').val() === 'pending' && !root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' && (root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).child('lobbyId').val() === $lobbyId || root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).val() === $lobbyId)) || (data.exists() && newData.exists() && auth.uid === $userId && newData.child('status').val() === 'pending' && (data.child('status').val() === 'pending' || data.child('status').val() === 'denied') && !root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' && (root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).child('lobbyId').val() === $lobbyId || root.child('lobbyCodes').child(root.child('lobbies/' + $lobbyId + '/code').val()).val() === $lobbyId)) || (data.exists() && newData.exists() && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && newData.child('name').val() === data.child('name').val() && newData.child('requestedAt').val() === data.child('requestedAt').val() && (newData.child('status').val() === 'approved' || newData.child('status').val() === 'denied')) || (data.exists() && !newData.exists() && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)))",
+          ".validate": "newData.hasChildren(['name', 'requestedAt', 'status']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('requestedAt').isNumber() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'denied')"
         }
-      }
-    },
-    "participants": {
-      "$lobbyId": {
-        ".read": "auth != null",
-        ".write": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
-        "$userId": {
-          ".write": "auth != null && auth.uid === $userId"
-        }
-      }
-    },
-    "votes": {
-      "$lobbyId": {
-        ".read": "auth != null && root.child('participants/' + $lobbyId + '/' + auth.uid).exists()",
-        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
-        "$userId": {
-          ".read": "auth != null && root.child('participants/' + $lobbyId + '/' + auth.uid).exists()",
-          ".write": "auth != null && auth.uid === $userId && !data.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))"
-        }
-      }
-    },
-    "lobbyCodes": {
-      "$code": {
-        ".read": "auth != null",
-        ".write": "auth != null"
       }
     },
     "userHistory": {
       "$userId": {
         ".read": "auth != null && auth.uid === $userId",
-        ".write": "auth != null && auth.uid === $userId"
+        ".write": "auth != null && auth.uid === $userId",
+        "$lobbyId": {
+          ".validate": "newData.hasChildren(['lobbyId', 'joinedAt']) && newData.child('lobbyId').val() === $lobbyId && newData.child('joinedAt').isNumber()"
+        }
       }
     },
     "userTeams": {
       "$userId": {
         ".read": "auth != null && auth.uid === $userId",
-        ".write": "auth != null && auth.uid === $userId"
+        ".write": "auth != null && auth.uid === $userId",
+        "$teamId": {
+          ".validate": "newData.hasChildren(['name', 'members', 'createdAt', 'updatedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber() && newData.child('members').hasChildren()",
+          "members": {
+            "$i": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            }
+          }
+        }
       }
     },
     "featureRequests": {
       ".read": "auth != null",
       "$requestId": {
-        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.exists() && newData.child('userId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userId').val() === auth.uid) || (data.exists() && newData.exists() && data.child('userId').val() === auth.uid && newData.child('userId').val() === data.child('userId').val() && newData.child('createdAt').val() === data.child('createdAt').val() && ((!data.hasChild('likes') && !newData.hasChild('likes')) || newData.child('likes').val() === data.child('likes').val()) && ((!data.hasChild('userName') && !newData.hasChild('userName')) || newData.child('userName').val() === data.child('userName').val())))",
+        ".validate": "newData.hasChildren(['title', 'createdAt', 'userId']) && newData.child('userId').isString() && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 120 && newData.child('createdAt').isNumber() && (!newData.hasChild('description') || (newData.child('description').isString() && newData.child('description').val().length <= 2000)) && (!newData.hasChild('userName') || (newData.child('userName').isString() && newData.child('userName').val().length <= 40))",
         "likes": {
           "$userId": {
-            ".write": "auth != null && $userId === auth.uid && root.child('featureRequests').child($requestId).child('userId').val() !== auth.uid"
+            ".write": "auth != null && $userId === auth.uid && root.child('featureRequests').child($requestId).child('userId').val() !== auth.uid",
+            ".validate": "newData.isBoolean() && newData.val() === true"
           }
         }
       }

@@ -179,24 +179,36 @@ export function queryByChild<T>(
   });
 }
 
-// Generate a 6-digit lobby code
-// Note: With 900,000 possible codes, collisions are extremely rare for typical usage
-export function generateLobbyCode(): string {
-  // Generate random 6-digit number (100000-999999)
-  return Math.floor(100000 + Math.random() * 900000).toString();
+export interface LobbyCodeMapping {
+  lobbyId: string;
+  status: string;
+  voteType?: 'mvpOnly' | 'mvpAndLoser';
+  teamName?: string;
+  teamMembers?: string[] | Record<string, string>;
+  claimedNames?: Record<string, string> | string[];
 }
 
-// Find a lobby by its 6-digit code
-// Returns the lobby ID and data if found, null otherwise
+export { generateLobbyCode, LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH } from '@/services/lobbyCode';
+
+function lobbyIdFromCodeMapping(value: unknown): string | null {
+  if (typeof value === 'string' && value) {
+    return value;
+  }
+  if (value && typeof value === 'object' && 'lobbyId' in value) {
+    const lobbyId = (value as LobbyCodeMapping).lobbyId;
+    return typeof lobbyId === 'string' && lobbyId ? lobbyId : null;
+  }
+  return null;
+}
+
 export async function findLobbyByCode(code: string): Promise<{ id: string; data: Record<string, unknown> } | null> {
   try {
-    // Read from the lobbyCodes lookup table
-    const lobbyId = await readData<string>(`lobbyCodes/${code}`);
+    const mapping = await readData<LobbyCodeMapping | string>(`lobbyCodes/${code}`);
+    const lobbyId = lobbyIdFromCodeMapping(mapping);
     if (!lobbyId) {
       return null;
     }
     
-    // Verify the lobby exists and is still active
     const lobbyData = await readData<Record<string, unknown>>(`lobbies/${lobbyId}`);
     if (!lobbyData) {
       return null;

@@ -11,11 +11,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { restDelete, restGet } from '@/services/firebaseRest';
 import { isTeamLobby } from '@/services/teams';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
+import { normalizeRankingList } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
@@ -23,21 +21,17 @@ interface LobbyData {
   createdAt: number;
   status: string;
   code: string;
-  voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
+  voteType?: 'mvpOnly' | 'mvpAndLoser';
   teamName?: string;
   teamMembers?: string[] | Record<string, string>;
+  mvpRanking?: unknown;
+  loserRanking?: unknown;
 }
 
 interface VoteData {
   mvpName: string;
   loserName?: string;
   submittedAt: number;
-}
-
-interface ParticipantData {
-  name: string;
-  joinedAt: number;
-  isCreator: boolean;
 }
 
 interface HistoryItem {
@@ -49,91 +43,17 @@ interface HistoryItem {
   voteType?: 'mvpOnly' | 'mvpAndLoser';
 }
 
-// Helper to read data using REST API
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper to delete data using REST API
-async function deleteViaRest(path: string): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-    });
-    
-    if (!response.ok) {
-      // Delete failed
-    }
-    
-    return response.ok;
-  } catch (error) {
-    console.error(`❌ Delete error for ${path}:`, error);
-    return false;
-  }
-}
-
-// Calculate winners from votes
-/** Outcomes from votes are only shown in My Votes after the lobby has moved past the voting phase. */
 function statusShowsPublicVoteResults(status: string): boolean {
   return status === 'results' || status === 'ranking' || status === 'completed';
 }
 
-function calculateWinners(votes: Record<string, VoteData>): { mvp: string | null; loser: string | null } {
-  const mvpCounts: Record<string, number> = {};
-  const loserCounts: Record<string, number> = {};
-
-  Object.values(votes).forEach((vote) => {
-    mvpCounts[vote.mvpName] = (mvpCounts[vote.mvpName] || 0) + 1;
-    // Only count loser votes if they exist
-    if (vote.loserName) {
-      loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
-    }
-  });
-
-  let mvpWinner: string | null = null;
-  let maxMvpVotes = 0;
-  Object.entries(mvpCounts).forEach(([name, count]) => {
-    if (count > maxMvpVotes) {
-      maxMvpVotes = count;
-      mvpWinner = name;
-    }
-  });
-
-  let loserWinner: string | null = null;
-  let maxLoserVotes = 0;
-  Object.entries(loserCounts).forEach(([name, count]) => {
-    if (count > maxLoserVotes) {
-      maxLoserVotes = count;
-      loserWinner = name;
-    }
-  });
-
-  return { mvp: mvpWinner, loser: loserWinner };
+function winnersFromLobby(lobbyData: LobbyData): { mvp: string | null; loser: string | null } {
+  const mvpRanking = normalizeRankingList(lobbyData.mvpRanking);
+  const loserRanking = normalizeRankingList(lobbyData.loserRanking);
+  return {
+    mvp: mvpRanking[0]?.name ?? null,
+    loser: loserRanking[0]?.name ?? null,
+  };
 }
 
 function formatDate(timestamp: number): string {
@@ -277,7 +197,7 @@ export default function HistoryScreen() {
 
     try {
       // Fetch user's participation history
-      const userHistory = await readViaRest<Record<string, { lobbyId: string; joinedAt: number }>>(
+      const userHistory = await restGet<Record<string, { lobbyId: string; joinedAt: number }>>(
         `userHistory/${user.uid}`
       );
 
@@ -292,13 +212,12 @@ export default function HistoryScreen() {
       for (const [, entry] of Object.entries(userHistory)) {
         const lobbyId = entry.lobbyId;
         
-        const lobbyData = await readViaRest<LobbyData>(`lobbies/${lobbyId}`);
+        const lobbyData = await restGet<LobbyData>(`lobbies/${lobbyId}`);
 
         if (lobbyData) {
-          const votesData = statusShowsPublicVoteResults(lobbyData.status)
-            ? await readViaRest<Record<string, VoteData>>(`votes/${lobbyId}`)
-            : null;
-          const winners = votesData ? calculateWinners(votesData) : { mvp: null, loser: null };
+          const winners = statusShowsPublicVoteResults(lobbyData.status)
+            ? winnersFromLobby(lobbyData)
+            : { mvp: null, loser: null };
           
           historyItems.push({
             lobbyId,
@@ -343,7 +262,7 @@ export default function HistoryScreen() {
     switch (status) {
       case 'waiting': {
         if (user && isTeamLobby(item.lobbyData)) {
-          const myVote = await readViaRest<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
+          const myVote = await restGet<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
           if (myVote != null) {
             router.push({
               pathname: '/votingWaiting',
@@ -359,9 +278,8 @@ export default function HistoryScreen() {
         break;
       }
       case 'voting': {
-        // Already voted → waiting screen with counts; not yet → voting form
         if (user) {
-          const myVote = await readViaRest<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
+          const myVote = await restGet<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
           if (myVote != null) {
             router.push({
               pathname: '/votingWaiting',
@@ -371,7 +289,7 @@ export default function HistoryScreen() {
           }
         }
         router.push({
-          pathname: '/voting',
+          pathname: '/waitingRoom',
           params: { voteId: item.lobbyId, from: 'history' },
         });
         break;
@@ -417,15 +335,14 @@ export default function HistoryScreen() {
             try {
               // IMPORTANT: Delete participants and votes FIRST
               // (Firebase rules check lobby creatorId, so lobby must still exist)
-              await deleteViaRest(`participants/${lobbyId}`);
-              await deleteViaRest(`votes/${lobbyId}`);
-              
-              // Then delete lobby and other data
-              await Promise.all([
-                deleteViaRest(`lobbies/${lobbyId}`),
-                deleteViaRest(`lobbyCodes/${code}`),
-                user ? deleteViaRest(`userHistory/${user.uid}/${lobbyId}`) : Promise.resolve(true),
-              ]);
+              await restDelete(`participants/${lobbyId}`);
+              await restDelete(`votes/${lobbyId}`);
+              await restDelete(`voteReceipts/${lobbyId}`);
+              await restDelete(`lobbyCodes/${code}`);
+              await restDelete(`lobbies/${lobbyId}`);
+              if (user) {
+                await restDelete(`userHistory/${user.uid}/${lobbyId}`);
+              }
 
               // Remove from local state
               setHistory((prev) => prev.filter((h) => h.lobbyId !== lobbyId));

@@ -4,4 +4,5 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/authorization-matrix.test.js'],
 };

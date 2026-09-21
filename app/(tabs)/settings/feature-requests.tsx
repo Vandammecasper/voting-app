@@ -19,98 +19,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { restDelete, restGet, restPatch, restPush, restPut } from '@/services/firebaseRest';
 
-const DATABASE_URL = getFirebaseDatabaseUrl();
-
-// Read data via REST API (same pattern as userInput, history, waitingRoom, etc.)
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) return null;
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data as T;
-  } catch {
-    return null;
-  }
-}
-
-// Push new entry via REST API (same pattern as userInput pushViaRest)
-async function pushViaRest<T>(path: string, data: T): Promise<string | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) return null;
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) return null;
-    const result = await response.json();
-    return result.name ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// Write (PUT) at path - for toggling like
-async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) return false;
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-// Delete at path - for removing like or removing a request
-async function deleteViaRest(path: string): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) return false;
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url, { method: 'DELETE' });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-// PATCH at path - update only specified keys (for editing request)
-async function patchViaRest(path: string, data: Record<string, unknown>): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) return false;
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/** Shape of a single feature request (for when data is connected later) */
 export interface FeatureRequestItem {
   title?: string;
   description?: string;
@@ -299,7 +209,7 @@ function FeatureRequestsScreenInner() {
   const [subtitleInput, setSubtitleInput] = React.useState('');
 
   const fetchFeatureRequests = React.useCallback(async () => {
-    const raw = await readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
+    const raw = await restGet<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
     setList(buildListFromData(raw ?? null));
     setError(null);
   }, []);
@@ -308,7 +218,7 @@ function FeatureRequestsScreenInner() {
     let cancelled = false;
     setIsLoading(true);
     setError(null);
-    readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH)
+    restGet<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH)
       .then((raw) => {
         if (!cancelled) {
           setList(buildListFromData(raw ?? null));
@@ -331,7 +241,7 @@ function FeatureRequestsScreenInner() {
     setRefreshing(true);
     setError(null);
     try {
-      const raw = await readViaRest<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
+      const raw = await restGet<Record<string, FeatureRequestItem>>(FEATURE_REQUESTS_PATH);
       setList(buildListFromData(raw ?? null));
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -368,12 +278,12 @@ function FeatureRequestsScreenInner() {
   const handleSaveRequest = React.useCallback(async () => {
     const title = titleInput.trim();
     const description = subtitleInput.trim();
-    if (!title) return;
+    if (!title || !user?.uid) return;
     setSaveError(null);
     setIsSaving(true);
     try {
       if (editingRequestId) {
-        const ok = await patchViaRest(`${FEATURE_REQUESTS_PATH}/${editingRequestId}`, {
+        const ok = await restPatch(`${FEATURE_REQUESTS_PATH}/${editingRequestId}`, {
           title,
           description: description || undefined,
         });
@@ -382,13 +292,18 @@ function FeatureRequestsScreenInner() {
           return;
         }
       } else {
-        const key = await pushViaRest(FEATURE_REQUESTS_PATH, {
+        const payload: Record<string, unknown> = {
           title,
-          description: description || undefined,
           createdAt: Date.now(),
-          userId: user?.uid ?? undefined,
-          userName: user?.displayName ?? undefined,
-        });
+          userId: user.uid,
+        };
+        if (description) {
+          payload.description = description;
+        }
+        if (user.displayName) {
+          payload.userName = user.displayName;
+        }
+        const key = await restPush(FEATURE_REQUESTS_PATH, payload);
         if (key == null) {
           setSaveError(new Error('Failed to save'));
           return;
@@ -414,7 +329,7 @@ function FeatureRequestsScreenInner() {
             text: 'Remove',
             style: 'destructive',
             onPress: async () => {
-              const ok = await deleteViaRest(`${FEATURE_REQUESTS_PATH}/${requestId}`);
+              const ok = await restDelete(`${FEATURE_REQUESTS_PATH}/${requestId}`);
               if (ok) await fetchFeatureRequests();
             },
           },
@@ -431,9 +346,9 @@ function FeatureRequestsScreenInner() {
       const hasLiked = !!(item.likes && item.likes[user.uid]);
       const path = `${FEATURE_REQUESTS_PATH}/${requestId}/likes/${user.uid}`;
       if (hasLiked) {
-        await deleteViaRest(path);
+        await restDelete(path);
       } else {
-        await writeViaRest(path, true);
+        await restPut(path, true);
       }
       await fetchFeatureRequests();
     },

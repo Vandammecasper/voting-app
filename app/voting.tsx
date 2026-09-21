@@ -14,22 +14,20 @@ import {
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { normalizeMemberList } from '@/services/teams';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { restGet, restUpdatePaths } from '@/services/firebaseRest';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
 
 interface Participant {
   name: string;
   joinedAt: number;
-  isCreator: boolean;
 }
 
 type ParticipantsData = Record<string, Participant>;
@@ -43,58 +41,6 @@ interface LobbyData {
   voteType?: 'mvpOnly' | 'mvpAndLoser'; // Optional for backward compatibility
   teamName?: string;
   teamMembers?: string[] | Record<string, string>;
-}
-
-// Helper to read data using REST API
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper to write data using REST API
-async function writeViaRest<T>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`❌ REST write error:`, error);
-    return false;
-  }
 }
 
 export default function VotingScreen() {
@@ -113,6 +59,12 @@ export default function VotingScreen() {
   const [voteType, setVoteType] = useState<'mvpOnly' | 'mvpAndLoser'>('mvpAndLoser');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [openDropdownCount, setOpenDropdownCount] = useState(0);
+  const [lobbyCode, setLobbyCode] = useState<string | undefined>();
+  const [isCreator, setIsCreator] = useState(false);
+  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
+    isCreator && voteId ? `joinRequests/${voteId}` : null,
+    2000
+  );
   const scrollRef = useRef<ScrollView>(null);
   const mvpCommentYRef = useRef(0);
   const loserCommentYRef = useRef(0);
@@ -177,12 +129,12 @@ export default function VotingScreen() {
     async function fetchData() {
       if (!voteId) return;
       
-      const lobbyData = await readViaRest<LobbyData>(`lobbies/${voteId}`);
+      const lobbyData = await restGet<LobbyData>(`lobbies/${voteId}`);
       const teamNames = normalizeMemberList(lobbyData?.teamMembers);
       if (teamNames.length > 0) {
         setParticipantNames(teamNames);
       } else {
-        const participants = await readViaRest<ParticipantsData>(`participants/${voteId}`);
+        const participants = await restGet<ParticipantsData>(`participants/${voteId}`);
         if (participants) {
           const names = Object.values(participants).map(p => p.name);
           setParticipantNames(names);
@@ -192,6 +144,9 @@ export default function VotingScreen() {
       if (lobbyData?.voteType) {
         setVoteType(lobbyData.voteType);
       }
+
+      setLobbyCode(lobbyData?.code);
+      setIsCreator(Boolean(user && lobbyData && user.uid === lobbyData.creatorId));
 
       if (user?.uid) {
         const draft = await loadVoteDraft(voteId, user.uid);
@@ -240,7 +195,7 @@ export default function VotingScreen() {
 
     try {
       // Check if user has already voted
-      const existingVote = await readViaRest(`votes/${voteId}/${user.uid}`);
+      const existingVote = await restGet(`votes/${voteId}/${user.uid}`);
       if (existingVote) {
         Alert.alert('Already Voted', 'You have already submitted your vote.');
         // Navigate to waiting screen since they already voted
@@ -269,7 +224,10 @@ export default function VotingScreen() {
         voteData.loserComment = loserComment.trim();
       }
 
-      const success = await writeViaRest(`votes/${voteId}/${user.uid}`, voteData);
+      const success = await restUpdatePaths({
+        [`votes/${voteId}/${user.uid}`]: voteData,
+        [`voteReceipts/${voteId}/${user.uid}`]: true,
+      });
       
       if (!success) {
         Alert.alert('Error', 'Failed to submit vote. Please try again.');
@@ -324,6 +282,16 @@ export default function VotingScreen() {
           text="Your vote" 
           style={styles.title}
         />
+
+        {isCreator && voteId && (
+          <View style={styles.joinRequestsWrap}>
+            <JoinRequestsPanel
+              voteId={voteId}
+              code={lobbyCode}
+              requests={joinRequests}
+            />
+          </View>
+        )}
 
         {/* MVP Section */}
         <Text style={styles.sectionLabel}>Your MVP of the match</Text>
@@ -444,6 +412,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
     fontFamily: defaultFontFamily,
+  },
+  joinRequestsWrap: {
+    marginBottom: 24,
   },
   sectionLabel: {
     color: '#D9D9D9',

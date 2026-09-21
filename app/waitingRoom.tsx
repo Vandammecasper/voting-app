@@ -7,16 +7,18 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
+import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { VoteDraftPanel } from '@/components/vote-draft-panel';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { restDelete, restGet, restPatch, restPut } from '@/services/firebaseRest';
 import {
+  availableMemberNames,
   claimedParticipantNames,
   isTeamLobby,
   normalizeMemberList,
@@ -29,118 +31,7 @@ import {
   VoteDraftInput,
 } from '@/services/voteDraftStorage';
 
-const DATABASE_URL = getFirebaseDatabaseUrl();
-
-// Tracks that we've shown the "Name Change Requested" alert for a participant so it
-// isn't shown twice (e.g. from effect re-runs or Strict Mode remounts). Cleared when
-// they resolve (submit, exit, or cancel).
 const shownNameChangePromptKeys = new Set<string>();
-
-// Helper to read data using REST API (silent version for polling)
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper to update data using REST API (PATCH for partial updates)
-async function updateViaRest<T>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    return response.ok;
-  } catch (error) {
-    console.error('❌ REST update error:', error);
-    return false;
-  }
-}
-
-// Helper to delete data using REST API
-async function deleteViaRest(path: string): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-    });
-    
-    return response.ok;
-  } catch (error) {
-    console.error('❌ REST delete error:', error);
-    return false;
-  }
-}
-
-// Hook to poll data using REST API
-function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
-  const [data, setData] = useState<T | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!path) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      const result = await readViaRest<T>(path);
-      if (isMounted) {
-        setData(result);
-        setIsLoading(false);
-      }
-    };
-
-    // Initial fetch
-    fetchData();
-
-    // Set up polling interval
-    const interval = setInterval(fetchData, intervalMs);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [path, intervalMs]);
-
-  return { data, isLoading };
-}
 
 const GRADIENT_COLORS = ['#6E92FF', '#90FF91'] as const;
 
@@ -256,7 +147,6 @@ const loaderStyles = StyleSheet.create({
 interface Participant {
   name: string;
   joinedAt: number;
-  isCreator: boolean;
   nameChangeRequested?: boolean;
 }
 
@@ -308,13 +198,13 @@ export default function WaitingRoomScreen() {
   };
   
   // Poll lobby data using REST API (avoids SDK crashes)
-  const { data: lobbyData } = usePolledData<LobbyData>(
+  const { data: lobbyData } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000 // Poll every 2 seconds
   );
   
   // Poll participants data using REST API
-  const { data: participantsData } = usePolledData<ParticipantsData>(
+  const { data: participantsData } = usePolledRestData<ParticipantsData>(
     voteId ? `participants/${voteId}` : null,
     2000 // Poll every 2 seconds
   );
@@ -323,6 +213,12 @@ export default function WaitingRoomScreen() {
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
   const teamMode = isTeamLobby(lobbyData);
   const teamMembers = normalizeMemberList(lobbyData?.teamMembers);
+  const votingIsOpen = teamMode || lobbyData?.status === 'voting';
+  const canStartVoting = Boolean(votingIsOpen || isCreator);
+  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
+    isCreator && voteId ? `joinRequests/${voteId}` : null,
+    2000
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -363,15 +259,6 @@ export default function WaitingRoomScreen() {
       return;
     }
 
-    if (lobbyData.status === 'voting') {
-      hasNavigated.current = true;
-      router.replace({
-        pathname: '/voting',
-        params: { voteId, from },
-      });
-      return;
-    }
-
     if (lobbyData.status === 'results') {
       hasNavigated.current = true;
       router.replace({
@@ -399,7 +286,7 @@ export default function WaitingRoomScreen() {
     let cancelled = false;
     const userId = user.uid;
     async function checkExistingVote() {
-      const existingVote = await readViaRest(`votes/${voteId}/${userId}`);
+      const existingVote = await restGet(`votes/${voteId}/${userId}`);
       if (cancelled || hasNavigated.current || !existingVote) {
         return;
       }
@@ -452,7 +339,7 @@ export default function WaitingRoomScreen() {
           {
             text: 'OK',
             onPress: async () => {
-              if (lobbyId && user) await deleteViaRest(`userHistory/${user.uid}/${lobbyId}`);
+              if (lobbyId && user) await restDelete(`userHistory/${user.uid}/${lobbyId}`);
               router.replace('/');
             },
           },
@@ -484,8 +371,11 @@ export default function WaitingRoomScreen() {
           style: 'destructive',
           onPress: async () => {
             shownNameChangePromptKeys.delete(key);
-            await deleteViaRest(`participants/${voteId}/${user.uid}`);
-            await deleteViaRest(`userHistory/${user.uid}/${voteId}`);
+            await restDelete(`participants/${voteId}/${user.uid}`);
+            if (lobbyData?.code) {
+              await restDelete(`lobbyCodes/${lobbyData.code}/claimedNames/${user.uid}`);
+            }
+            await restDelete(`userHistory/${user.uid}/${voteId}`);
             router.replace('/');
           },
         },
@@ -530,12 +420,15 @@ export default function WaitingRoomScreen() {
     }
     
     // Update name and clear the request flag
-    const success = await updateViaRest(`participants/${voteId}/${user.uid}`, {
+    const success = await restPatch(`participants/${voteId}/${user.uid}`, {
       name: nextName,
       nameChangeRequested: false,
     });
     
     if (success) {
+      if (lobbyData?.code) {
+        await restPut(`lobbyCodes/${lobbyData.code}/claimedNames/${user.uid}`, nextName);
+      }
       setShowNameInputModal(false);
       shownNameChangePromptKeys.delete(`${voteId}-${user.uid}`);
     } else {
@@ -565,7 +458,7 @@ export default function WaitingRoomScreen() {
         {
           text: 'Request Name Change',
           onPress: async () => {
-            const success = await updateViaRest(`participants/${voteId}/${participant.id}`, {
+            const success = await restPatch(`participants/${voteId}/${participant.id}`, {
               nameChangeRequested: true,
             });
             if (!success) {
@@ -577,7 +470,10 @@ export default function WaitingRoomScreen() {
           text: 'Remove from Lobby',
           style: 'destructive',
           onPress: async () => {
-            const success = await deleteViaRest(`participants/${voteId}/${participant.id}`);
+            const success = await restDelete(`participants/${voteId}/${participant.id}`);
+            if (success && lobbyData?.code) {
+              await restDelete(`lobbyCodes/${lobbyData.code}/claimedNames/${participant.id}`);
+            }
             if (!success) {
               Alert.alert('Error', 'Failed to remove participant. Please try again.');
             }
@@ -589,10 +485,9 @@ export default function WaitingRoomScreen() {
 
   // Handle start voting button
   const handleStartVoting = async () => {
-    if (!voteId) return;
-    if (!teamMode && !isCreator) return;
+    if (!voteId || !canStartVoting) return;
 
-    if (teamMode) {
+    if (votingIsOpen) {
       hasNavigated.current = true;
       router.replace({
         pathname: '/voting',
@@ -603,14 +498,22 @@ export default function WaitingRoomScreen() {
 
     setIsStarting(true);
     try {
-      const success = await updateViaRest(`lobbies/${voteId}`, { status: 'voting' });
+      const success = await restPatch(`lobbies/${voteId}`, { status: 'voting' });
+      if (success && lobbyData?.code) {
+        await restPatch(`lobbyCodes/${lobbyData.code}`, { status: 'voting' });
+      }
       
       if (!success) {
         Alert.alert('Error', 'Failed to start voting. Please try again.');
         setIsStarting(false);
         return;
       }
-      // Navigation will happen automatically via the useEffect when status changes
+
+      hasNavigated.current = true;
+      router.replace({
+        pathname: '/voting',
+        params: { voteId, from },
+      });
     } catch (error) {
       console.error('❌ Error starting voting:', error);
       Alert.alert('Error', 'Failed to start voting. Please try again.');
@@ -765,8 +668,17 @@ export default function WaitingRoomScreen() {
       </View>
 
       <View style={styles.bottomSection}>
+        {isCreator && voteId ? (
+          <View style={styles.joinRequestsWrap}>
+            <JoinRequestsPanel
+              voteId={voteId}
+              code={lobbyData?.code}
+              requests={joinRequests}
+            />
+          </View>
+        ) : null}
         <View style={styles.buttonContainer}>
-          {(teamMode || isCreator) && (
+          {canStartVoting && (
             <PrimaryButton 
               style={{ marginHorizontal: 24 }} 
               textStyle={{ fontSize: 24, fontWeight: 'bold' }} 
@@ -820,13 +732,12 @@ export default function WaitingRoomScreen() {
                 <View style={styles.modalDropdown}>
                   <SelectDropdown
                     value={selectedTeamName}
-                    options={teamMembers}
+                    options={availableMemberNames(
+                      teamMembers,
+                      claimedParticipantNames(participantsData)
+                    )}
                     placeholder="Select your name"
                     onSelect={setSelectedTeamName}
-                    disabledOptions={[
-                      (participantsData?.[user?.uid ?? '']?.name ?? '').trim(),
-                      ...claimedParticipantNames(participantsData, user?.uid),
-                    ].filter(Boolean)}
                   />
                 </View>
               ) : (
@@ -883,6 +794,10 @@ const styles = StyleSheet.create({
   bottomSection: {
     width: '100%',
     paddingBottom: 40,
+  },
+  joinRequestsWrap: {
+    paddingHorizontal: 24,
+    marginBottom: 12,
   },
   boxBorder: {
     borderRadius: 20,

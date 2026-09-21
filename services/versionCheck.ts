@@ -1,10 +1,8 @@
 import Constants from 'expo-constants';
 import { Linking, Platform } from 'react-native';
 
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { restGet } from '@/services/firebaseRest';
 
-const DATABASE_URL = getFirebaseDatabaseUrl();
 const ANDROID_PACKAGE = 'com.caspervd.voting_app';
 const LOG_PREFIX = '[VersionCheck]';
 
@@ -49,49 +47,10 @@ export function isAppVersionOutdated(current: string, minimumVersion: string): b
   return isOutdated;
 }
 
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      console.warn(`${LOG_PREFIX} Skipping fetch for "${path}" — no authenticated user`);
-      return null;
-    }
-    if (!DATABASE_URL) {
-      console.warn(
-        `${LOG_PREFIX} Skipping fetch for "${path}" — EXPO_PUBLIC_FIREBASE_DATABASEURL is not set`
-      );
-      return null;
-    }
-
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    console.log(`${LOG_PREFIX} Fetching`, path, 'from', DATABASE_URL);
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.warn(`${LOG_PREFIX} Fetch failed for "${path}"`, {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorBody,
-      });
-      return null;
-    }
-
-    const data = (await response.json()) as T;
-    console.log(`${LOG_PREFIX} Fetch succeeded for "${path}"`, data);
-    return data;
-  } catch (error) {
-    console.error(`${LOG_PREFIX} Fetch error for "${path}"`, error);
-    return null;
-  }
-}
-
 /** Reads `appConfig` from Firebase. Set `minimumVersion` there when you release a new build. */
 export async function fetchAppVersionConfig(): Promise<AppVersionConfig | null> {
   console.log(`${LOG_PREFIX} Loading appConfig from Firebase...`);
-  const config = await readViaRest<Partial<AppVersionConfig>>('appConfig');
+  const config = await restGet<Partial<AppVersionConfig>>('appConfig');
 
   if (!config) {
     console.warn(`${LOG_PREFIX} No appConfig data returned (null or fetch failed)`);

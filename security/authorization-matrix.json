@@ -1,0 +1,618 @@
+{
+  "uids": {
+    "creator": "creator-uid",
+    "participant": "participant-uid",
+    "otherParticipant": "other-uid",
+    "authStranger": "stranger-uid",
+    "pendingRequester": "pending-uid"
+  },
+  "fixtures": {
+    "votingSession": {
+      "appConfig": { "minimumVersion": "1.0.0" },
+      "lobbies": {
+        "lobby1": {
+          "creatorId": "creator-uid",
+          "creatorName": "Host",
+          "createdAt": 1700000000000,
+          "status": "voting",
+          "code": "ABCD2345",
+          "voteType": "mvpAndLoser"
+        }
+      },
+      "participants": {
+        "lobby1": {
+          "creator-uid": { "name": "Host", "joinedAt": 1700000000000 },
+          "participant-uid": { "name": "Pat", "joinedAt": 1700000000001 },
+          "other-uid": { "name": "Oak", "joinedAt": 1700000000002 }
+        }
+      },
+      "votes": {
+        "lobby1": {
+          "participant-uid": {
+            "mvpName": "Host",
+            "mvpComment": "clutch save",
+            "loserName": "Oak",
+            "loserComment": "own goal",
+            "submittedAt": 1700000000003
+          }
+        }
+      },
+      "voteReceipts": {
+        "lobby1": {
+          "participant-uid": true
+        }
+      },
+      "lobbyCodes": {
+        "ABCD2345": {
+          "lobbyId": "lobby1",
+          "status": "voting",
+          "voteType": "mvpAndLoser",
+          "claimedNames": {
+            "creator-uid": "Host",
+            "participant-uid": "Pat",
+            "other-uid": "Oak"
+          }
+        }
+      },
+      "joinRequests": {
+        "lobby1": {
+          "pending-uid": {
+            "name": "Quinn",
+            "requestedAt": 1700000000100,
+            "status": "pending"
+          }
+        }
+      },
+      "userHistory": {
+        "participant-uid": {
+          "lobby1": { "lobbyId": "lobby1", "joinedAt": 1700000000001 }
+        }
+      },
+      "userTeams": {
+        "participant-uid": {
+          "team1": {
+            "name": "Tigers",
+            "members": { "0": "Pat", "1": "Oak" },
+            "createdAt": 1700000000000,
+            "updatedAt": 1700000000000
+          }
+        }
+      },
+      "featureRequests": {
+        "req1": {
+          "title": "Dark mode",
+          "description": "Please",
+          "createdAt": 1700000000000,
+          "userId": "creator-uid"
+        }
+      }
+    },
+    "waitingJoin": {
+      "lobbies": {
+        "lobby2": {
+          "creatorId": "creator-uid",
+          "creatorName": "Host",
+          "createdAt": 1700000000000,
+          "status": "waiting",
+          "code": "EFGH6789",
+          "voteType": "mvpOnly"
+        },
+        "unmapped": {
+          "creatorId": "creator-uid",
+          "creatorName": "Host",
+          "createdAt": 1700000000000,
+          "status": "waiting",
+          "code": "UNMAPPED",
+          "voteType": "mvpOnly"
+        }
+      },
+      "participants": {
+        "lobby2": {
+          "creator-uid": { "name": "Host", "joinedAt": 1700000000000 }
+        }
+      },
+      "lobbyCodes": {
+        "EFGH6789": {
+          "lobbyId": "lobby2",
+          "status": "waiting",
+          "voteType": "mvpOnly",
+          "claimedNames": {
+            "creator-uid": "Host"
+          }
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "anon-cannot-read-lobby",
+      "fixture": "votingSession",
+      "principal": "anon",
+      "path": "lobbies/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-read-lobby",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "lobbies/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "participant-can-read-lobby",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "lobbies/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "creator-can-read-lobby",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "lobbies/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-read-participants",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "participants/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "participant-can-read-participants",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "participants/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-self-join-active-lobby",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "participants/lobby1/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999 },
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-join-without-code-mapping",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "participants/unmapped/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999 },
+      "allow": false
+    },
+    {
+      "id": "stranger-can-join-waiting-lobby-with-code",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "participants/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999 },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-read-vote-tree",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "votes/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "other-participant-cannot-read-vote-tree",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "votes/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "other-participant-cannot-read-foreign-vote",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "votes/lobby1/participant-uid",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "participant-can-read-own-vote",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "votes/lobby1/participant-uid",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "creator-can-read-vote-tree",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "votes/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "participant-can-read-receipts",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "voteReceipts/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-read-receipts",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "voteReceipts/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-remap-lobby-code",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "lobbyCodes/ABCD2345",
+      "action": "set",
+      "data": { "lobbyId": "hijacked", "status": "waiting" },
+      "allow": false
+    },
+    {
+      "id": "participant-cannot-remap-lobby-code",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "lobbyCodes/ABCD2345",
+      "action": "update",
+      "data": { "lobbyId": "hijacked" },
+      "allow": false
+    },
+    {
+      "id": "creator-can-update-lobby-code-status",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "lobbyCodes/ABCD2345",
+      "action": "update",
+      "data": { "status": "results" },
+      "allow": true
+    },
+    {
+      "id": "forged-creatorId-on-create-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "lobbies/forged",
+      "action": "set",
+      "data": {
+        "creatorId": "creator-uid",
+        "creatorName": "Eve",
+        "createdAt": 1700000000999,
+        "status": "waiting",
+        "code": "ZZZZ9999",
+        "voteType": "mvpOnly"
+      },
+      "allow": false
+    },
+    {
+      "id": "stranger-can-create-own-lobby",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "lobbies/new-lobby",
+      "action": "set",
+      "data": {
+        "creatorId": "stranger-uid",
+        "creatorName": "Eve",
+        "createdAt": 1700000000999,
+        "status": "waiting",
+        "code": "ZZZZ9999",
+        "voteType": "mvpOnly"
+      },
+      "allow": true
+    },
+    {
+      "id": "participant-cannot-change-lobby-status",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "lobbies/lobby1",
+      "action": "update",
+      "data": { "status": "results" },
+      "allow": false
+    },
+    {
+      "id": "creator-cannot-transfer-creatorId",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "lobbies/lobby1",
+      "action": "update",
+      "data": { "creatorId": "stranger-uid" },
+      "allow": false
+    },
+    {
+      "id": "creator-can-advance-status",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "lobbies/lobby1",
+      "action": "update",
+      "data": { "status": "results" },
+      "allow": true
+    },
+    {
+      "id": "swapped-history-id-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "userHistory/participant-uid/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "owner-can-read-own-history",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "userHistory/participant-uid/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "swapped-teams-id-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "userTeams/participant-uid",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "owner-can-read-own-teams",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "userTeams/participant-uid",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "feature-request-spoofed-userId-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "featureRequests/spoof",
+      "action": "set",
+      "data": {
+        "title": "Mine",
+        "createdAt": 1700000000999,
+        "userId": "creator-uid"
+      },
+      "allow": false
+    },
+    {
+      "id": "feature-request-create-own-userId-allowed",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "featureRequests/own",
+      "action": "set",
+      "data": {
+        "title": "Mine",
+        "createdAt": 1700000000999,
+        "userId": "stranger-uid"
+      },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-like-own-request",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "featureRequests/req1/likes/creator-uid",
+      "action": "set",
+      "data": true,
+      "allow": false
+    },
+    {
+      "id": "stranger-can-like-others-request",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "featureRequests/req1/likes/stranger-uid",
+      "action": "set",
+      "data": true,
+      "allow": true
+    },
+    {
+      "id": "owner-cannot-overwrite-likes",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "featureRequests/req1",
+      "action": "update",
+      "data": { "likes": { "creator-uid": true } },
+      "allow": false
+    },
+    {
+      "id": "participant-cannot-write-isCreator-flag",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "participants/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999, "isCreator": true },
+      "allow": false
+    },
+    {
+      "id": "other-participant-cannot-overwrite-vote",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "votes/lobby1/participant-uid",
+      "action": "set",
+      "data": {
+        "mvpName": "Oak",
+        "mvpComment": "changed",
+        "submittedAt": 1700000000999
+      },
+      "allow": false
+    },
+    {
+      "id": "authenticated-can-read-appConfig",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "appConfig",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "authenticated-cannot-write-appConfig",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "appConfig",
+      "action": "set",
+      "data": { "minimumVersion": "9.9.9" },
+      "allow": false
+    },
+    {
+      "id": "stranger-can-request-join-while-voting",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending" },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-request-join-as-approved",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "approved" },
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-request-join-while-waiting",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending" },
+      "allow": false
+    },
+    {
+      "id": "participant-cannot-request-join",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "joinRequests/lobby1/participant-uid",
+      "action": "set",
+      "data": { "name": "Pat", "requestedAt": 1700000000999, "status": "pending" },
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-read-join-requests",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "creator-can-read-join-requests",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "joinRequests/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "pending-requester-can-read-own-request",
+      "fixture": "votingSession",
+      "principal": "pendingRequester",
+      "path": "joinRequests/lobby1/pending-uid",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "pending-requester-cannot-approve-own-request",
+      "fixture": "votingSession",
+      "principal": "pendingRequester",
+      "path": "joinRequests/lobby1/pending-uid",
+      "action": "update",
+      "data": { "status": "approved" },
+      "allow": false
+    },
+    {
+      "id": "creator-can-approve-join-request",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "joinRequests/lobby1/pending-uid",
+      "action": "update",
+      "data": { "status": "approved" },
+      "allow": true
+    },
+    {
+      "id": "creator-can-deny-join-request",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "joinRequests/lobby1/pending-uid",
+      "action": "update",
+      "data": { "status": "denied" },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-approve-others-join-request",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1/pending-uid",
+      "action": "update",
+      "data": { "status": "approved" },
+      "allow": false
+    },
+    {
+      "id": "creator-can-admit-late-joiner",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "participants/lobby1/pending-uid",
+      "action": "set",
+      "data": { "name": "Quinn", "joinedAt": 1700000000999 },
+      "allow": true
+    },
+    {
+      "id": "participant-can-write-own-claimed-name",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "lobbyCodes/ABCD2345/claimedNames/participant-uid",
+      "action": "set",
+      "data": "Pat",
+      "allow": true
+    },
+    {
+      "id": "participant-cannot-write-others-claimed-name",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "lobbyCodes/ABCD2345/claimedNames/other-uid",
+      "action": "set",
+      "data": "Stolen",
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-write-claimed-name",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "lobbyCodes/EFGH6789/claimedNames/stranger-uid",
+      "action": "set",
+      "data": "Eve",
+      "allow": false
+    },
+    {
+      "id": "creator-can-write-claimed-name-for-joiner",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "lobbyCodes/ABCD2345/claimedNames/pending-uid",
+      "action": "set",
+      "data": "Quinn",
+      "allow": true
+    },
+    {
+      "id": "stranger-can-read-claimed-names",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "lobbyCodes/ABCD2345",
+      "action": "get",
+      "allow": true
+    }
+  ]
+}

@@ -10,10 +10,9 @@ import { SwipePager } from '@/components/swipe-pager';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
+import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { restGet, restPatch } from '@/services/firebaseRest';
+import { calculateRankings } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
@@ -43,84 +42,6 @@ function shuffleInPlace<T>(items: T[]): T[] {
   return copy;
 }
 
-// Helper to read data using REST API
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper to update data using REST API (PATCH)
-async function updateViaRest<T extends Record<string, unknown>>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Hook to poll data using REST API
-function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
-  const [data, setData] = useState<T | null>(null);
-
-  useEffect(() => {
-    if (!path) {
-      setData(null);
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      const result = await readViaRest<T>(path);
-      if (isMounted) {
-        setData(result);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, intervalMs);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [path, intervalMs]);
-
-  return data;
-}
-
 export default function ResultsScreen() {
   const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
@@ -132,23 +53,28 @@ export default function ResultsScreen() {
   const [currentVoteIndex, setCurrentVoteIndex] = useState(0);
 
   // Poll lobby data to detect status changes
-  const lobbyData = usePolledData<LobbyData>(
+  const { data: lobbyData, isLoading: lobbyLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
   );
+  const isCreator = Boolean(user && lobbyData && user.uid === lobbyData.creatorId);
 
-  // Fetch votes data on mount
   useEffect(() => {
     async function fetchData() {
-      if (!voteId) return;
-      
-      const votes = await readViaRest<VotesData>(`votes/${voteId}`);
+      if (!voteId || !lobbyData || !user) return;
+      if (user.uid !== lobbyData.creatorId) {
+        setVotesData(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const votes = await restGet<VotesData>(`votes/${voteId}`);
       setVotesData(votes);
       setIsLoading(false);
     }
-    
+
     fetchData();
-  }, [voteId]);
+  }, [voteId, user, lobbyData]);
 
   // Auto-navigate to ranking when status changes
   useEffect(() => {
@@ -166,7 +92,6 @@ export default function ResultsScreen() {
     return shuffleInPlace(Object.values(votesData));
   }, [votesData]);
 
-  const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
   const totalVotes = votesArray.length;
   const hasPreviousVote = currentVoteIndex > 0;
   const hasNextVote = currentVoteIndex < totalVotes - 1;
@@ -184,9 +109,19 @@ export default function ResultsScreen() {
   };
 
   const handleGoToRanking = async () => {
-    // Update lobby status to 'ranking' so all participants navigate
     if (voteId) {
-      await updateViaRest(`lobbies/${voteId}`, { status: 'ranking' });
+      const rankings = calculateRankings(votesData);
+      const lobbyUpdate: Record<string, unknown> = { status: 'ranking' };
+      if (rankings.mvpRanking.length > 0) {
+        lobbyUpdate.mvpRanking = rankings.mvpRanking;
+      }
+      if (rankings.loserRanking.length > 0) {
+        lobbyUpdate.loserRanking = rankings.loserRanking;
+      }
+      await restPatch(`lobbies/${voteId}`, lobbyUpdate);
+      if (lobbyData?.code) {
+        await restPatch(`lobbyCodes/${lobbyData.code}`, { status: 'ranking' });
+      }
     }
     
     router.replace({
@@ -195,7 +130,17 @@ export default function ResultsScreen() {
     });
   };
 
-  if (isLoading) {
+  if (lobbyLoading && !lobbyData) {
+    return (
+      <ThemedView safeAndroid style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.loadingText}>Loading results...</Text>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (isLoading && isCreator) {
     return (
       <ThemedView safeAndroid style={styles.container}>
         <View style={styles.centerContent}>

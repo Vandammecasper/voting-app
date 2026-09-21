@@ -37,8 +37,29 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Firebase emulator
+firebase-debug.log
+database-debug.log
+ui-debug.log
+*-debug.log
+
 app-example
 
 # generated native folders
 /ios
 /android
+
+# AI files
+.idea/
+.vscode/
+.cursor/
+.cursorrules/
+.cursorrules.md/
+.cursorrules.txt/
+.cursorrules.yml/
+.cursorrules.yaml/
+.cursorrules.json/
+.agents/
+.claude/
+.github/
+.tessl/

@@ -1,0 +1,15 @@
+{
+  "name": "voting-app",
+  "mode": "vendored",
+  "dependencies": {
+    "guydemo/authguard": {
+      "version": "0.1.0"
+    }
+  },
+  "agents": [
+    "claude-code",
+    "cursor",
+    "copilot",
+    "copilot-vscode"
+  ]
+}

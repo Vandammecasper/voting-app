@@ -1,22 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
+import { JoinRequestsPanel, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
+import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { restPatch } from '@/services/firebaseRest';
 
 interface Participant {
   name: string;
   joinedAt: number;
-  isCreator: boolean;
 }
 
 interface LobbyData {
@@ -27,129 +25,39 @@ interface LobbyData {
   code: string;
 }
 
-interface VoteData {
-  mvpName: string;
-  mvpComment: string;
-  loserName?: string;
-  loserComment?: string;
-  submittedAt: number;
-}
-
 type ParticipantsData = Record<string, Participant>;
-type VotesData = Record<string, VoteData>;
-
-// Helper to read data using REST API
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper to update data using REST API (PATCH)
-async function updateViaRest<T extends Record<string, unknown>>(path: string, data: T): Promise<boolean> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return false;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Hook to poll data using REST API
-function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
-  const [data, setData] = useState<T | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!path) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      const result = await readViaRest<T>(path);
-      if (isMounted) {
-        setData(result);
-        setIsLoading(false);
-      }
-    };
-
-    // Initial fetch
-    fetchData();
-
-    // Set up polling interval
-    const interval = setInterval(fetchData, intervalMs);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [path, intervalMs]);
-
-  return { data, isLoading };
-}
+type VoteReceiptsData = Record<string, boolean>;
 
 export default function VotingWaitingScreen() {
   const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
   const { user } = useAuth();
   
   // Poll lobby data
-  const { data: lobbyData } = usePolledData<LobbyData>(
+  const { data: lobbyData } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
   );
   
-  // Poll participants data
-  const { data: participantsData } = usePolledData<ParticipantsData>(
+  const { data: participantsData } = usePolledRestData<ParticipantsData>(
     voteId ? `participants/${voteId}` : null,
     2000
   );
   
-  // Poll votes data
-  const { data: votesData } = usePolledData<VotesData>(
-    voteId ? `votes/${voteId}` : null,
+  const { data: receiptsData } = usePolledRestData<VoteReceiptsData>(
+    voteId ? `voteReceipts/${voteId}` : null,
     2000
   );
 
   // Check if current user is the creator
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
+  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
+    isCreator && voteId ? `joinRequests/${voteId}` : null,
+    2000
+  );
 
   // Calculate vote counts
   const totalParticipants = participantsData ? Object.keys(participantsData).length : 0;
-  const votesSubmitted = votesData ? Object.keys(votesData).length : 0;
+  const votesSubmitted = receiptsData ? Object.keys(receiptsData).length : 0;
   const votesRemaining = totalParticipants - votesSubmitted;
 
   // Auto-navigate to results when status changes
@@ -165,7 +73,10 @@ export default function VotingWaitingScreen() {
   const handleGoToResults = async () => {
     // Update lobby status to 'results' so all participants navigate
     if (voteId) {
-      await updateViaRest(`lobbies/${voteId}`, { status: 'results' });
+      await restPatch(`lobbies/${voteId}`, { status: 'results' });
+      if (lobbyData?.code) {
+        await restPatch(`lobbyCodes/${lobbyData.code}`, { status: 'results' });
+      }
     }
     
     router.replace({
@@ -182,6 +93,15 @@ export default function VotingWaitingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
+      {isCreator && voteId ? (
+        <View style={styles.joinRequestsWrap}>
+          <JoinRequestsPanel
+            voteId={voteId}
+            code={lobbyData?.code}
+            requests={joinRequests}
+          />
+        </View>
+      ) : null}
       {everyoneHasVoted ? (
         <>
           <View style={styles.content}>
@@ -249,6 +169,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 100,
+  },
+  joinRequestsWrap: {
+    marginBottom: 16,
   },
   content: {
     flex: 1,

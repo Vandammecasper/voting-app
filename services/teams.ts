@@ -1,7 +1,5 @@
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
+import { getFirebaseAuth } from '@/services/firebaseAuth';
+import { restDelete, restGet, restPatch, restPush } from '@/services/firebaseRest';
 
 export const MIN_TEAM_MEMBERS = 2;
 
@@ -21,27 +19,16 @@ export interface TeamLobbyFields {
   teamMembers?: string[] | Record<string, string>;
 }
 
-async function restRequest(
-  path: string,
-  init?: RequestInit
-): Promise<{ ok: boolean; json: unknown }> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token || !DATABASE_URL) {
-      return { ok: false, json: null };
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    const response = await fetch(url, init);
-    if (!response.ok) {
-      return { ok: false, json: null };
-    }
+function currentUserId(): string | null {
+  return getFirebaseAuth().currentUser?.uid ?? null;
+}
 
-    const json = await response.json();
-    return { ok: true, json };
-  } catch {
-    return { ok: false, json: null };
+function teamsPathFor(userId: string): string | null {
+  const uid = currentUserId();
+  if (!uid || uid !== userId) {
+    return null;
   }
+  return `userTeams/${uid}`;
 }
 
 export function normalizeMemberList(members: unknown): string[] {
@@ -88,10 +75,6 @@ export function claimedParticipantNames(
   return claimed;
 }
 
-function teamsPath(userId: string): string {
-  return `userTeams/${userId}`;
-}
-
 function parseTeam(id: string, raw: unknown): UserTeamWithId | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return null;
@@ -113,22 +96,27 @@ function parseTeam(id: string, raw: unknown): UserTeamWithId | null {
 }
 
 export async function listTeams(userId: string): Promise<UserTeamWithId[]> {
-  const { ok, json } = await restRequest(teamsPath(userId));
-  if (!ok || !json || typeof json !== 'object') {
+  const path = teamsPathFor(userId);
+  if (!path) {
+    return [];
+  }
+  const json = await restGet<Record<string, unknown>>(path);
+  if (!json || typeof json !== 'object') {
     return [];
   }
 
-  return Object.entries(json as Record<string, unknown>)
+  return Object.entries(json)
     .map(([id, value]) => parseTeam(id, value))
     .filter((team): team is UserTeamWithId => team != null)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function getTeam(userId: string, teamId: string): Promise<UserTeamWithId | null> {
-  const { ok, json } = await restRequest(`${teamsPath(userId)}/${teamId}`);
-  if (!ok) {
+  const path = teamsPathFor(userId);
+  if (!path) {
     return null;
   }
+  const json = await restGet(`${path}/${teamId}`);
   return parseTeam(teamId, json);
 }
 
@@ -136,6 +124,10 @@ export async function createTeam(
   userId: string,
   input: { name: string; members: string[] }
 ): Promise<string | null> {
+  const path = teamsPathFor(userId);
+  if (!path) {
+    return null;
+  }
   const now = Date.now();
   const payload: UserTeam = {
     name: input.name.trim(),
@@ -144,18 +136,7 @@ export async function createTeam(
     updatedAt: now,
   };
 
-  const { ok, json } = await restRequest(teamsPath(userId), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!ok || !json || typeof json !== 'object') {
-    return null;
-  }
-
-  const name = (json as { name?: string }).name;
-  return typeof name === 'string' ? name : null;
+  return restPush(path, payload);
 }
 
 export async function updateTeam(
@@ -163,23 +144,64 @@ export async function updateTeam(
   teamId: string,
   input: { name: string; members: string[] }
 ): Promise<boolean> {
-  const { ok } = await restRequest(`${teamsPath(userId)}/${teamId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: input.name.trim(),
-      members: normalizeMemberList(input.members),
-      updatedAt: Date.now(),
-    }),
+  const path = teamsPathFor(userId);
+  if (!path) {
+    return false;
+  }
+  return restPatch(`${path}/${teamId}`, {
+    name: input.name.trim(),
+    members: normalizeMemberList(input.members),
+    updatedAt: Date.now(),
   });
-  return ok;
 }
 
 export async function deleteTeam(userId: string, teamId: string): Promise<boolean> {
-  const { ok } = await restRequest(`${teamsPath(userId)}/${teamId}`, {
-    method: 'DELETE',
+  const path = teamsPathFor(userId);
+  if (!path) {
+    return false;
+  }
+  return restDelete(`${path}/${teamId}`);
+}
+
+export function claimedNameSet(claimed: unknown): Set<string> {
+  const names = new Set<string>();
+  if (Array.isArray(claimed)) {
+    for (const value of claimed) {
+      if (typeof value === 'string' && value.trim()) {
+        names.add(value.trim());
+      }
+    }
+    return names;
+  }
+  if (claimed && typeof claimed === 'object') {
+    for (const value of Object.values(claimed as Record<string, unknown>)) {
+      if (typeof value === 'string' && value.trim()) {
+        names.add(value.trim());
+      }
+    }
+  }
+  return names;
+}
+
+export function availableMemberNames(
+  members: string[],
+  claimed: Iterable<string>,
+  keepName?: string
+): string[] {
+  const taken = new Set(
+    [...claimed].map((name) => name.trim()).filter(Boolean)
+  );
+  const keep = keepName?.trim();
+  return members.filter((member) => {
+    const name = member.trim();
+    if (!name) {
+      return false;
+    }
+    if (keep && name === keep) {
+      return true;
+    }
+    return !taken.has(name);
   });
-  return ok;
 }
 
 export function usableTeams(teams: UserTeamWithId[]): UserTeamWithId[] {

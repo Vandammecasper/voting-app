@@ -1,88 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-
-const DATABASE_URL = getFirebaseDatabaseUrl();
+import { usePolledRestData } from '@/hooks/usePolledRestData';
+import { RankingEntry, normalizeRankingList } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
   status: string;
-}
-
-interface VoteData {
-  mvpName: string;
-  mvpComment: string;
-  loserName?: string;
-  loserComment?: string;
-  submittedAt: number;
-}
-
-type VotesData = Record<string, VoteData>;
-
-interface RankingEntry {
-  name: string;
-  votes: number;
-}
-
-// Helper to read data using REST API
-async function readViaRest<T>(path: string): Promise<T | null> {
-  try {
-    const currentUser = getFirebaseAuth().currentUser;
-    const token = await getCurrentIdToken();
-    if (!currentUser || !token) {
-      return null;
-    }
-    const url = `${DATABASE_URL}/${path}.json?auth=${token}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const data = await response.json();
-    return data as T;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Calculate rankings from votes
-function calculateRankings(votes: VotesData): {
-  mvpRanking: RankingEntry[];
-  loserRanking: RankingEntry[];
-} {
-  const mvpCounts: Record<string, number> = {};
-  const loserCounts: Record<string, number> = {};
-
-  Object.values(votes).forEach((vote) => {
-    // Count MVP votes
-    mvpCounts[vote.mvpName] = (mvpCounts[vote.mvpName] || 0) + 1;
-    // Count Loser votes (only if loser exists)
-    if (vote.loserName) {
-      loserCounts[vote.loserName] = (loserCounts[vote.loserName] || 0) + 1;
-    }
-  });
-
-  // Convert to sorted arrays
-  const mvpRanking = Object.entries(mvpCounts)
-    .map(([name, votes]) => ({ name, votes }))
-    .sort((a, b) => b.votes - a.votes);
-
-  const loserRanking = Object.entries(loserCounts)
-    .map(([name, votes]) => ({ name, votes }))
-    .sort((a, b) => b.votes - a.votes);
-
-  return { mvpRanking, loserRanking };
+  mvpRanking?: unknown;
+  loserRanking?: unknown;
 }
 
 // Medal colors for top 3
@@ -131,69 +64,18 @@ function RankingItem({ entry, position, type }: {
   );
 }
 
-// Hook to poll data
-function usePolledData<T>(path: string | null, intervalMs: number = 2000) {
-  const [data, setData] = useState<T | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!path) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchData = async () => {
-      const result = await readViaRest<T>(path);
-      if (isMounted) {
-        setData(result);
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, intervalMs);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [path, intervalMs]);
-
-  return { data, isLoading };
-}
-
 export default function RankingScreen() {
   const { voteId, from } = useLocalSearchParams<{ voteId: string; from?: string }>();
-  
-  const [votesData, setVotesData] = useState<VotesData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Poll lobby data to check for status changes
-  const { data: lobbyData } = usePolledData<LobbyData>(
+  const { data: lobbyData, isLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
   );
 
-  // Fetch votes data on mount
-  useEffect(() => {
-    async function fetchData() {
-      if (!voteId) return;
-      
-      const votes = await readViaRest<VotesData>(`votes/${voteId}`);
-      setVotesData(votes);
-      setIsLoading(false);
-    }
-    
-    fetchData();
-  }, [voteId]);
+  const rankings = {
+    mvpRanking: normalizeRankingList(lobbyData?.mvpRanking),
+    loserRanking: normalizeRankingList(lobbyData?.loserRanking),
+  };
 
-  const rankings = useMemo(() => {
-    if (!votesData) return { mvpRanking: [], loserRanking: [] };
-    return calculateRankings(votesData);
-  }, [votesData]);
 
   const handleFinish = () => {
     if (from === 'history') {
