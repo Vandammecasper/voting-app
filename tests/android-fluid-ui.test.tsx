@@ -74,6 +74,7 @@ describe('Android fluid UI contracts', () => {
     expect(settingsLayout).toContain('name="index"');
     expect(settingsLayout).toContain('headerShown: false');
     expect(settingsLayout).toContain('gestureEnabled: false');
+    expect(settingsLayout).toContain('headerTransparent: false');
   });
 
   it('places Back below the inner edge on Android, not a second status-bar inset', async () => {

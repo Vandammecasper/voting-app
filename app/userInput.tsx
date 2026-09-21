@@ -415,7 +415,6 @@ export default function UserInputScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <ScreenBackButton onPress={handleBack} />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -569,6 +568,7 @@ export default function UserInputScreen() {
           </ScrollView>
         </Pressable>
       </KeyboardAvoidingView>
+      <ScreenBackButton onPress={handleBack} />
     </ThemedView>
   );
 }

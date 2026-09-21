@@ -701,8 +701,6 @@ export default function WaitingRoomScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <ScreenBackButton onPress={handleExitLobby} />
-
       <View style={styles.topSection}>
         <SecondaryButton style={{ marginHorizontal: 56 }} textStyle={{ fontSize: 16, fontWeight: 'bold' }} onPress={handleCopyCode}>
           {isCopied ? 'Copied!' : `ID: ${lobbyData?.code || 'Loading...'}`}
@@ -860,6 +858,7 @@ export default function WaitingRoomScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <ScreenBackButton onPress={handleExitLobby} />
     </ThemedView>
   );
 }

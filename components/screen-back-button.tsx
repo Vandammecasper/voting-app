@@ -21,7 +21,8 @@ export function ScreenBackButton({ onPress, label = 'Back' }: ScreenBackButtonPr
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={10}
+      hitSlop={12}
+      collapsable={false}
       style={[styles.button, { top: topOffset }]}
     >
       <View style={styles.content}>
@@ -41,6 +42,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 8,
     zIndex: 1000,
+    elevation: 1000,
     paddingVertical: 8,
     paddingHorizontal: 8,
   },

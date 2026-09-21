@@ -182,7 +182,6 @@ export default function VotingWaitingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <ScreenBackButton onPress={handleExit} />
       {everyoneHasVoted ? (
         <>
           <View style={styles.content}>
@@ -240,6 +239,7 @@ export default function VotingWaitingScreen() {
           </View>
         </>
       )}
+      <ScreenBackButton onPress={handleExit} />
     </ThemedView>
   );
 }

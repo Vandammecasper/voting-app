@@ -297,7 +297,6 @@ export default function VotingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <ScreenBackButton onPress={handleExit} />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -419,6 +418,7 @@ export default function VotingScreen() {
           </PrimaryButton>
         </View>
       </KeyboardAvoidingView>
+      <ScreenBackButton onPress={handleExit} />
     </ThemedView>
   );
 }

@@ -209,7 +209,6 @@ export default function ResultsScreen() {
   if (!isCreator) {
     return (
       <ThemedView safeAndroid style={styles.container}>
-        <ScreenBackButton onPress={() => router.replace('/')} />
         <View style={styles.centerContent}>
           <Ionicons name="megaphone-outline" size={64} color={Colors.icon} />
           <GradientText 
@@ -220,6 +219,7 @@ export default function ResultsScreen() {
             The host is reading the voting results to the group. You can go back if you need to leave.
           </Text>
         </View>
+        <ScreenBackButton onPress={() => router.replace('/')} />
       </ThemedView>
     );
   }
@@ -231,7 +231,6 @@ export default function ResultsScreen() {
   // Creator view - show individual votes
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <ScreenBackButton onPress={handleExit} />
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -310,6 +309,7 @@ export default function ResultsScreen() {
           )}
         </View>
       </ScrollView>
+      <ScreenBackButton onPress={handleExit} />
     </ThemedView>
   );
 }
