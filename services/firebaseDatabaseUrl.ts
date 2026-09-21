@@ -19,8 +19,9 @@ function fromNativeApp(): string | undefined {
 /** Firebase RTDB REST base URL. Accepts both env names used in this project. */
 export function getFirebaseDatabaseUrl(): string | undefined {
   return (
-    sanitizeUrl(process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL) ||
     sanitizeUrl(process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL) ||
+    sanitizeUrl(process.env.EXPO_PUBLIC_FIREBASE_DATABASEURL) ||
+    sanitizeUrl(process.env.EXPO_PUBLIC_DATABASEURL) ||
     fromNativeApp()
   );
 }

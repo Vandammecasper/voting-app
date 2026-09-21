@@ -10,16 +10,26 @@ function databaseUrl(path: string): string | null {
   return trimmed ? `${base}/${trimmed}.json` : `${base}/.json`;
 }
 
-async function authHeaders(): Promise<HeadersInit | null> {
+async function authedRequest(
+  path: string,
+  init: RequestInit
+): Promise<Response | null> {
   const currentUser = getFirebaseAuth().currentUser;
   const token = await getCurrentIdToken();
-  if (!currentUser || !token) {
+  const baseUrl = databaseUrl(path);
+  if (!currentUser || !token || !baseUrl) {
     return null;
   }
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+
+  const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}auth=${encodeURIComponent(token)}`;
+  return fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+    },
+  });
 }
 
 async function parseJson(response: Response): Promise<unknown> {
@@ -36,13 +46,8 @@ async function parseJson(response: Response): Promise<unknown> {
 
 export async function restGet<T>(path: string): Promise<T | null> {
   try {
-    const headers = await authHeaders();
-    const url = databaseUrl(path);
-    if (!headers || !url) {
-      return null;
-    }
-    const response = await fetch(url, { headers });
-    if (!response.ok) {
+    const response = await authedRequest(path, { method: 'GET' });
+    if (!response?.ok) {
       return null;
     }
     return (await parseJson(response)) as T | null;
@@ -53,17 +58,11 @@ export async function restGet<T>(path: string): Promise<T | null> {
 
 export async function restPut<T>(path: string, data: T): Promise<boolean> {
   try {
-    const headers = await authHeaders();
-    const url = databaseUrl(path);
-    if (!headers || !url) {
-      return false;
-    }
-    const response = await fetch(url, {
+    const response = await authedRequest(path, {
       method: 'PUT',
-      headers,
       body: JSON.stringify(data),
     });
-    return response.ok;
+    return response?.ok === true;
   } catch {
     return false;
   }
@@ -74,17 +73,11 @@ export async function restPatch(
   data: Record<string, unknown>
 ): Promise<boolean> {
   try {
-    const headers = await authHeaders();
-    const url = databaseUrl(path);
-    if (!headers || !url) {
-      return false;
-    }
-    const response = await fetch(url, {
+    const response = await authedRequest(path, {
       method: 'PATCH',
-      headers,
       body: JSON.stringify(data),
     });
-    return response.ok;
+    return response?.ok === true;
   } catch {
     return false;
   }
@@ -92,16 +85,8 @@ export async function restPatch(
 
 export async function restDelete(path: string): Promise<boolean> {
   try {
-    const headers = await authHeaders();
-    const url = databaseUrl(path);
-    if (!headers || !url) {
-      return false;
-    }
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers,
-    });
-    return response.ok;
+    const response = await authedRequest(path, { method: 'DELETE' });
+    return response?.ok === true;
   } catch {
     return false;
   }
@@ -109,17 +94,11 @@ export async function restDelete(path: string): Promise<boolean> {
 
 export async function restPush<T>(path: string, data: T): Promise<string | null> {
   try {
-    const headers = await authHeaders();
-    const url = databaseUrl(path);
-    if (!headers || !url) {
-      return null;
-    }
-    const response = await fetch(url, {
+    const response = await authedRequest(path, {
       method: 'POST',
-      headers,
       body: JSON.stringify(data),
     });
-    if (!response.ok) {
+    if (!response?.ok) {
       return null;
     }
     const result = (await parseJson(response)) as { name?: string } | null;

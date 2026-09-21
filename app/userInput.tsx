@@ -18,7 +18,6 @@ import {
 import { restDelete, restGet, restPush, restPut } from '@/services/firebaseRest';
 import {
   availableMemberNames,
-  claimedNameKey,
   claimedNameSet,
   claimedNameSlotPath,
   isTeamLobby,
@@ -237,7 +236,6 @@ export default function UserInputScreen() {
         lobbyId,
         status: 'waiting',
         voteType,
-        claimedNames: { [claimedNameKey(name)]: name.trim() },
         ...(useTeam && selectedTeam
           ? {
               teamName: selectedTeam.name,
@@ -251,7 +249,7 @@ export default function UserInputScreen() {
         Alert.alert("Couldn't create lobby", 'Please try again.');
         return;
       }
-      
+
       await restPut(`participants/${lobbyId}/${user.uid}`, {
         name: name.trim(),
         joinedAt: Date.now(),
