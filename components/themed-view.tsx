@@ -32,5 +32,5 @@ export function ThemedView({
     );
   }
 
-  return <View style={[{ backgroundColor }, style]} {...otherProps} />;
+  return <View collapsable={false} style={[{ backgroundColor }, style]} {...otherProps} />;
 }

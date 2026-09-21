@@ -15,12 +15,14 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePullToRefreshGuard } from '@/hooks/usePullToRefreshGuard';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { listTeams, MIN_TEAM_MEMBERS, UserTeamWithId } from '@/services/teams';
 
 export default function TeamsScreen() {
   const { user } = useAuth();
   const tabBarInset = useTabSceneBottomInset();
+  const refreshGuard = usePullToRefreshGuard();
   const [teams, setTeams] = React.useState<UserTeamWithId[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -50,31 +52,40 @@ export default function TeamsScreen() {
   }, [loadTeams]);
 
   const onRefresh = React.useCallback(async () => {
+    refreshGuard.suppressPresses();
     setRefreshing(true);
     try {
       await loadTeams();
     } finally {
       setRefreshing(false);
     }
-  }, [loadTeams]);
+  }, [loadTeams, refreshGuard]);
 
   const openCreate = () => {
+    if (refreshGuard.shouldIgnorePress() || refreshing) {
+      return;
+    }
     router.push('/(tabs)/settings/team-edit' as Href);
   };
 
   const openEdit = (id: string) => {
+    if (refreshGuard.shouldIgnorePress() || refreshing) {
+      return;
+    }
     router.push(`/(tabs)/settings/team-edit?id=${encodeURIComponent(id)}` as Href);
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
+    <ThemedView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          { paddingBottom: 40 + tabBarInset },
           teams.length === 0 && !isLoading && styles.scrollContentCentered,
         ]}
         showsVerticalScrollIndicator={false}
+        {...refreshGuard.scrollProps}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -133,7 +144,7 @@ export default function TeamsScreen() {
         )}
       </ScrollView>
       {teams.length > 0 && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: 16 + tabBarInset }]}>
           <PrimaryButton onPress={openCreate} style={styles.addButtonBottom}>
             Add team
           </PrimaryButton>

@@ -14,8 +14,20 @@ import {
   generateLobbyCode,
   LOBBY_CODE_LENGTH,
   LobbyCodeMapping,
+  pushData,
+  writeData,
 } from '@/services/database';
-import { restDelete, restGet, restPush, restPut } from '@/services/firebaseRest';
+import {
+  formatCaughtError,
+  formatRestFailure,
+  restDelete,
+  restGet,
+  restGetDetailed,
+  restPut,
+  restPutDetailed,
+  restPushDetailed,
+  type RestFailure,
+} from '@/services/firebaseRest';
 import {
   availableMemberNames,
   claimedNameSet,
@@ -65,15 +77,78 @@ function isOpenJoinStatus(status: string): boolean {
   return status === 'waiting' || status === 'voting';
 }
 
-async function allocateLobbyCode(): Promise<string | null> {
+async function allocateLobbyCode(): Promise<{ code: string } | RestFailure> {
+  let lastFailure: RestFailure | null = null;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const code = generateLobbyCode();
-    const existing = await restGet(`lobbyCodes/${code}`);
-    if (existing == null) {
-      return code;
+    const existing = await restGetDetailed(`lobbyCodes/${code}`);
+    if (!existing.ok) {
+      lastFailure = existing;
+      continue;
+    }
+    if (existing.data == null) {
+      return { code };
     }
   }
-  return null;
+  return (
+    lastFailure ?? {
+      ok: false,
+      path: 'lobbyCodes',
+      method: 'GET',
+      status: null,
+      error: 'Could not allocate a unique lobby code',
+    }
+  );
+}
+
+function showCreateError(step: string, detail: string) {
+  Alert.alert("Couldn't create lobby", `${step}\n\n${detail}`);
+}
+
+async function writeLobbyWithFallback(
+  lobbyData: Record<string, unknown>
+): Promise<{ lobbyId: string } | RestFailure> {
+  const restResult = await restPushDetailed('lobbies', lobbyData);
+  if (restResult.ok) {
+    return { lobbyId: restResult.key };
+  }
+
+  try {
+    const sdkId = await pushData('lobbies', lobbyData);
+    if (sdkId) {
+      return { lobbyId: sdkId };
+    }
+  } catch (error) {
+    return {
+      ...restResult,
+      error: `${restResult.error}\nSDK: ${formatCaughtError(error)}`,
+    };
+  }
+
+  return {
+    ...restResult,
+    error: `${restResult.error}\nSDK: lobby was created without an id`,
+  };
+}
+
+async function putWithFallback(
+  path: string,
+  data: unknown
+): Promise<true | RestFailure> {
+  const restResult = await restPutDetailed(path, data);
+  if (restResult.ok) {
+    return true;
+  }
+
+  try {
+    await writeData(path, data);
+    return true;
+  } catch (error) {
+    return {
+      ...restResult,
+      error: `${restResult.error}\nSDK: ${formatCaughtError(error)}`,
+    };
+  }
 }
 
 export default function UserInputScreen() {
@@ -194,20 +269,21 @@ export default function UserInputScreen() {
     if (useTeam && (!selectedTeam || !name.trim())) {
       return;
     }
-    
+
     if (!user) {
-      console.error('❌ No user found');
+      showCreateError('Not signed in', 'No Firebase user is available.');
       return;
     }
 
     setIsCreating(true);
 
     try {
-      const code = await allocateLobbyCode();
-      if (!code) {
-        Alert.alert("Couldn't create lobby", 'Please try again.');
+      const allocated = await allocateLobbyCode();
+      if (!('code' in allocated)) {
+        showCreateError('Could not allocate a lobby code', formatRestFailure(allocated));
         return;
       }
+      const { code } = allocated;
 
       const lobbyData = {
         creatorId: user.uid,
@@ -219,18 +295,18 @@ export default function UserInputScreen() {
         ...(useTeam && selectedTeam
           ? {
               teamName: selectedTeam.name,
-              teamMembers: selectedTeam.members,
+              teamMembers: normalizeMemberList(selectedTeam.members),
             }
           : {}),
       };
 
-      const lobbyId = await restPush('lobbies', lobbyData);
-      
-      if (!lobbyId) {
-        console.error('❌ Failed to create lobby');
-        Alert.alert("Couldn't create lobby", 'Please try again.');
+      const createdLobby = await writeLobbyWithFallback(lobbyData);
+      if (!('lobbyId' in createdLobby)) {
+        console.error('❌ Failed to create lobby', createdLobby);
+        showCreateError('Failed writing lobbies/{id}', formatRestFailure(createdLobby));
         return;
       }
+      const { lobbyId } = createdLobby;
 
       const codeMapping: LobbyCodeMapping = {
         lobbyId,
@@ -239,28 +315,52 @@ export default function UserInputScreen() {
         ...(useTeam && selectedTeam
           ? {
               teamName: selectedTeam.name,
-              teamMembers: selectedTeam.members,
+              teamMembers: normalizeMemberList(selectedTeam.members),
             }
           : {}),
       };
 
-      const codeWrite = await restPut(`lobbyCodes/${code}`, codeMapping);
-      if (!codeWrite) {
-        Alert.alert("Couldn't create lobby", 'Please try again.');
+      const codeWrite = await putWithFallback(`lobbyCodes/${code}`, codeMapping);
+      if (codeWrite !== true) {
+        showCreateError('Failed writing lobbyCodes/{code}', formatRestFailure(codeWrite));
         return;
       }
 
-      await restPut(`participants/${lobbyId}/${user.uid}`, {
+      const participantWrite = await putWithFallback(`participants/${lobbyId}/${user.uid}`, {
         name: name.trim(),
         joinedAt: Date.now(),
       });
+      if (participantWrite !== true) {
+        showCreateError(
+          'Failed writing participants/{lobbyId}/{uid}',
+          formatRestFailure(participantWrite)
+        );
+        return;
+      }
 
-      await restPut(claimedNameSlotPath(code, name), name.trim());
+      const claimedWrite = await putWithFallback(
+        claimedNameSlotPath(code, name),
+        name.trim()
+      );
+      if (claimedWrite !== true) {
+        showCreateError(
+          'Failed writing lobbyCodes/{code}/claimedNames',
+          formatRestFailure(claimedWrite)
+        );
+        return;
+      }
 
-      await restPut(`userHistory/${user.uid}/${lobbyId}`, {
+      const historyWrite = await putWithFallback(`userHistory/${user.uid}/${lobbyId}`, {
         lobbyId,
         joinedAt: Date.now(),
       });
+      if (historyWrite !== true) {
+        showCreateError(
+          'Failed writing userHistory/{uid}/{lobbyId}',
+          formatRestFailure(historyWrite)
+        );
+        return;
+      }
 
       router.push({
         pathname: '/waitingRoom',
@@ -268,7 +368,7 @@ export default function UserInputScreen() {
       });
     } catch (error) {
       console.error('❌ Error creating vote:', error);
-      Alert.alert("Couldn't create lobby", 'Please try again.');
+      showCreateError('Unexpected error', formatCaughtError(error));
     } finally {
       setIsCreating(false);
     }

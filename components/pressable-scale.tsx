@@ -1,12 +1,9 @@
 import React from 'react';
-import { Platform, Pressable as RNPressable, StyleProp, ViewStyle } from 'react-native';
-import { Pressable as GHPressable } from 'react-native-gesture-handler';
+import { Pressable, StyleProp, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { PRESS_SCALE, PRESS_SPRING } from '@/constants/motion';
 import { commitHaptic } from '@/utils/haptics';
-
-const Pressable = Platform.OS === 'ios' ? GHPressable : RNPressable;
 
 type PressableScaleProps = Omit<React.ComponentProps<typeof Pressable>, 'children'> & {
   children?: React.ReactNode;

@@ -79,8 +79,8 @@ function IosNativeTabs() {
         fontSize: 11,
         fontWeight: '600',
       }}
-      backgroundColor={Colors.background}
-      disableTransparentOnScrollEdge
+      backgroundColor="transparent"
+      blurEffect="none"
       minimizeBehavior="never"
     >
       <NativeTabs.Trigger name="index">

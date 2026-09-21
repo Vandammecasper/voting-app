@@ -10,6 +10,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePullToRefreshGuard } from '@/hooks/usePullToRefreshGuard';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { restDelete, restGet } from '@/services/firebaseRest';
 import { isTeamLobby } from '@/services/teams';
@@ -181,6 +182,7 @@ export default function HistoryScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const tabBarInset = useTabSceneBottomInset();
+  const refreshGuard = usePullToRefreshGuard();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -257,10 +259,14 @@ export default function HistoryScreen() {
   }, [user]);
 
   const handleRefresh = () => {
+    refreshGuard.suppressPresses();
     fetchHistory(true);
   };
 
   const handleCardPress = async (item: HistoryItem) => {
+    if (refreshGuard.shouldIgnorePress() || isRefreshing) {
+      return;
+    }
     const status = item.lobbyData.status;
     
     // Navigate to appropriate screen based on vote status
@@ -366,7 +372,7 @@ export default function HistoryScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: tabBarInset }]}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={Colors.tint} />
           <Text style={styles.loadingText}>Loading your votes...</Text>
@@ -376,7 +382,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: tabBarInset }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       {showUpdatedToast && (
         <Animated.View 
           entering={FadeIn.duration(200)} 
@@ -390,8 +396,9 @@ export default function HistoryScreen() {
 
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + tabBarInset }]}
         showsVerticalScrollIndicator={false}
+        {...refreshGuard.scrollProps}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

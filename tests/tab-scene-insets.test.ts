@@ -28,6 +28,12 @@ describe('tab scene insets', () => {
     );
   });
 
+  it('keeps the iOS native tab bar transparent so lists scroll behind the items', () => {
+    const layout = read('app/(tabs)/_layout.tsx');
+    expect(layout).toContain('backgroundColor="transparent"');
+    expect(layout).not.toContain('disableTransparentOnScrollEdge');
+  });
+
   it('pads every tab-hosted screen above the iOS tab bar', () => {
     for (const relPath of tabScreens) {
       const source = read(relPath);

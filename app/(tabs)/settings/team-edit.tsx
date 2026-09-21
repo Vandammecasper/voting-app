@@ -162,14 +162,14 @@ export default function TeamEditScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
+    <ThemedView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 48 + tabBarInset }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

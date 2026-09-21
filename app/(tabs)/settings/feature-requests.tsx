@@ -18,6 +18,7 @@ import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePullToRefreshGuard } from '@/hooks/usePullToRefreshGuard';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { restDelete, restGet, restPatch, restPush, restPut } from '@/services/firebaseRest';
 
@@ -197,6 +198,7 @@ class FeatureRequestsErrorBoundary extends React.Component<
 function FeatureRequestsScreenInner() {
   const { user } = useAuth();
   const tabBarInset = useTabSceneBottomInset();
+  const refreshGuard = usePullToRefreshGuard();
   const [list, setList] = React.useState<{ id: string; item: FeatureRequestItem }[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
@@ -238,6 +240,7 @@ function FeatureRequestsScreenInner() {
   }, []);
 
   const onRefresh = React.useCallback(async () => {
+    refreshGuard.suppressPresses();
     setRefreshing(true);
     setError(null);
     try {
@@ -248,15 +251,18 @@ function FeatureRequestsScreenInner() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshGuard]);
 
   const openAddModal = React.useCallback(() => {
+    if (refreshGuard.shouldIgnorePress() || refreshing) {
+      return;
+    }
     setEditingRequestId(null);
     setTitleInput('');
     setSubtitleInput('');
     setSaveError(null);
     setShowAddModal(true);
-  }, []);
+  }, [refreshGuard, refreshing]);
   const closeAddModal = React.useCallback(() => {
     setShowAddModal(false);
     setEditingRequestId(null);
@@ -266,6 +272,9 @@ function FeatureRequestsScreenInner() {
   }, []);
 
   const openEditModal = React.useCallback((requestId: string) => {
+    if (refreshGuard.shouldIgnorePress() || refreshing) {
+      return;
+    }
     const entry = list.find((x) => x.id === requestId);
     if (!entry) return;
     setEditingRequestId(requestId);
@@ -273,7 +282,7 @@ function FeatureRequestsScreenInner() {
     setSubtitleInput(entry.item.description ?? '');
     setSaveError(null);
     setShowAddModal(true);
-  }, [list]);
+  }, [list, refreshGuard, refreshing]);
 
   const handleSaveRequest = React.useCallback(async () => {
     const title = titleInput.trim();
@@ -320,6 +329,9 @@ function FeatureRequestsScreenInner() {
 
   const handleDeleteRequest = React.useCallback(
     (requestId: string) => {
+      if (refreshGuard.shouldIgnorePress() || refreshing) {
+        return;
+      }
       Alert.alert(
         'Remove request',
         'Are you sure you want to remove this feature request?',
@@ -336,11 +348,14 @@ function FeatureRequestsScreenInner() {
         ]
       );
     },
-    [fetchFeatureRequests]
+    [fetchFeatureRequests, refreshGuard, refreshing]
   );
 
   const handleLikeToggle = React.useCallback(
     async (requestId: string) => {
+      if (refreshGuard.shouldIgnorePress() || refreshing) {
+        return;
+      }
       const item = list.find((x) => x.id === requestId)?.item;
       if (!item || !user?.uid) return;
       const hasLiked = !!(item.likes && item.likes[user.uid]);
@@ -352,18 +367,20 @@ function FeatureRequestsScreenInner() {
       }
       await fetchFeatureRequests();
     },
-    [list, user?.uid, fetchFeatureRequests]
+    [list, user?.uid, fetchFeatureRequests, refreshGuard, refreshing]
   );
 
   return (
-    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
+    <ThemedView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          { paddingBottom: 40 + tabBarInset },
           list.length === 0 && !isLoading && styles.scrollContentCentered,
         ]}
         showsVerticalScrollIndicator={false}
+        {...refreshGuard.scrollProps}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -415,7 +432,7 @@ function FeatureRequestsScreenInner() {
         )}
       </ScrollView>
       {list.length > 0 && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: 16 + tabBarInset }]}>
           <PrimaryButton onPress={openAddModal} style={styles.addButtonBottom}>
             Add request
           </PrimaryButton>
