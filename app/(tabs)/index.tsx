@@ -6,12 +6,22 @@ import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { defaultFontFamily } from '@/constants/theme';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabSceneBottomInset();
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          paddingBottom: 16 + tabBarInset,
+        },
+      ]}
+    >
       <View style={styles.hero}>
         <GradientText
           text="MVP"
@@ -34,7 +44,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: 48,
-    paddingBottom: 16,
   },
   hero: {
     flex: 1,

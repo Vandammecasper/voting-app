@@ -17,6 +17,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import {
     createTeam,
     deleteTeam,
@@ -29,6 +30,7 @@ export default function TeamEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const tabBarInset = useTabSceneBottomInset();
   const isEditing = Boolean(id);
 
   const [name, setName] = React.useState('');
@@ -160,7 +162,7 @@ export default function TeamEditScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

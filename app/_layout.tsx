@@ -34,12 +34,24 @@ const AppTheme = {
   },
 };
 
-const hiddenStackScreen = {
+const onboardingStackScreen = {
   headerShown: false,
   headerBackVisible: false,
   gestureEnabled: false,
-  fullScreenGestureEnabled: false,
   animation: 'none',
+} as const;
+
+const tabsStackScreen = {
+  headerShown: false,
+  headerBackVisible: false,
+  // Prevent popping the whole tab navigator; nested stacks keep their own back gesture.
+  gestureEnabled: false,
+} as const;
+
+const flowStackScreen = {
+  headerShown: false,
+  gestureEnabled: true,
+  fullScreenGestureEnabled: true,
 } as const;
 
 function RootLayoutNav() {
@@ -59,17 +71,17 @@ function RootLayoutNav() {
     <>
       <Stack screenOptions={rootStackScreenOptions}>
         <Stack.Protected guard={!onboarded}>
-          <Stack.Screen name="index" options={hiddenStackScreen} />
-          <Stack.Screen name="onboarding" options={hiddenStackScreen} />
+          <Stack.Screen name="index" options={onboardingStackScreen} />
+          <Stack.Screen name="onboarding" options={onboardingStackScreen} />
         </Stack.Protected>
         <Stack.Protected guard={onboarded}>
-          <Stack.Screen name="(tabs)" options={hiddenStackScreen} />
-          <Stack.Screen name="waitingRoom" options={{ headerShown: false }} />
-          <Stack.Screen name="userInput" options={{ headerShown: false }} />
-          <Stack.Screen name="voting" options={{ headerShown: false }} />
-          <Stack.Screen name="votingWaiting" options={{ headerShown: false }} />
-          <Stack.Screen name="results" options={{ headerShown: false }} />
-          <Stack.Screen name="ranking" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={tabsStackScreen} />
+          <Stack.Screen name="waitingRoom" options={flowStackScreen} />
+          <Stack.Screen name="userInput" options={flowStackScreen} />
+          <Stack.Screen name="voting" options={flowStackScreen} />
+          <Stack.Screen name="votingWaiting" options={flowStackScreen} />
+          <Stack.Screen name="results" options={flowStackScreen} />
+          <Stack.Screen name="ranking" options={flowStackScreen} />
         </Stack.Protected>
       </Stack>
       {Platform.OS !== 'android' ? <StatusBar {...statusBarProps} /> : null}

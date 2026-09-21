@@ -11,34 +11,36 @@ export default function SettingsLayout() {
         headerStyle: { backgroundColor: Colors.background },
         headerShadowVisible: false,
         headerTintColor: '#ECEDEE',
-        title: '',
-        headerTitle: '',
+        headerBackTitle: 'Back',
+        headerBackButtonDisplayMode: 'generic',
         gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        animation: 'default',
       }}
     >
       <Stack.Screen
         name="index"
-        options={{ headerShown: false, title: '', headerTitle: '', gestureEnabled: false }}
+        options={{ headerShown: false, title: 'Settings', headerTitle: 'Settings' }}
       />
       <Stack.Screen
         name="feature-requests"
         options={{
+          title: 'Feature requests',
           headerTitle: 'Feature requests',
-          headerBackTitle: 'Back',
         }}
       />
       <Stack.Screen
         name="teams"
         options={{
+          title: 'Teams',
           headerTitle: 'Teams',
-          headerBackTitle: 'Back',
         }}
       />
       <Stack.Screen
         name="team-edit"
         options={{
+          title: 'Team',
           headerTitle: 'Team',
-          headerBackTitle: 'Back',
         }}
       />
     </Stack>

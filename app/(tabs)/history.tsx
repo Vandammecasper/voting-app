@@ -10,9 +10,10 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { isTeamLobby } from '@/services/teams';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { isTeamLobby } from '@/services/teams';
 
 const DATABASE_URL = getFirebaseDatabaseUrl();
 
@@ -257,6 +258,7 @@ function HistoryCard({ item, isCreator, isDeleting, onPress, onDelete }: History
 export default function HistoryScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabSceneBottomInset();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -441,7 +443,7 @@ export default function HistoryScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: tabBarInset }]}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={Colors.tint} />
           <Text style={styles.loadingText}>Loading your votes...</Text>
@@ -451,7 +453,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: tabBarInset }]}>
       {showUpdatedToast && (
         <Animated.View 
           entering={FadeIn.duration(200)} 

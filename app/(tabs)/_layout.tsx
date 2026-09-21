@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TAB_BAR_ITEM_HEIGHT } from '@/constants/tabBar';
 import { Colors } from '@/constants/theme';
 
-/** Matches React Navigation's default UIKit tab-bar item height. */
-const TAB_BAR_ITEM_HEIGHT = 49;
-
-export default function TabLayout() {
+function JavaScriptTabs() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = TAB_BAR_ITEM_HEIGHT + insets.bottom;
 
@@ -67,4 +67,42 @@ export default function TabLayout() {
       />
     </Tabs>
   );
+}
+
+function IosNativeTabs() {
+  return (
+    <NativeTabs
+      tintColor={Colors.tint}
+      iconColor={Colors.icon}
+      labelStyle={{
+        color: Colors.icon,
+        fontSize: 11,
+        fontWeight: '600',
+      }}
+      backgroundColor={Colors.background}
+      disableTransparentOnScrollEdge
+      minimizeBehavior="never"
+    >
+      <NativeTabs.Trigger name="index">
+        <Label>Home</Label>
+        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="history">
+        <Label>My Votes</Label>
+        <Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Label>Settings</Label>
+        <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+}
+
+export default function TabLayout() {
+  if (Platform.OS === 'ios') {
+    return <IosNativeTabs />;
+  }
+
+  return <JavaScriptTabs />;
 }

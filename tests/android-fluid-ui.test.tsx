@@ -51,6 +51,8 @@ describe('Android fluid UI contracts', () => {
     expect(layout).toContain('Stack.Protected');
     expect(layout).toContain('gestureEnabled: false');
     expect(layout).toContain("name=\"(tabs)\"");
+    expect(layout).toContain('fullScreenGestureEnabled: true');
+    expect(layout).not.toContain('fullScreenGestureEnabled: false');
     expect(layout).not.toContain('unstable-native-tabs');
   });
 
@@ -73,8 +75,17 @@ describe('Android fluid UI contracts', () => {
     const settingsLayout = read('app/(tabs)/settings/_layout.tsx');
     expect(settingsLayout).toContain('name="index"');
     expect(settingsLayout).toContain('headerShown: false');
-    expect(settingsLayout).toContain('gestureEnabled: false');
+    expect(settingsLayout).toContain('gestureEnabled: true');
+    expect(settingsLayout).toContain('fullScreenGestureEnabled: true');
     expect(settingsLayout).toContain('headerTransparent: false');
+  });
+
+  it('uses native iOS tabs and JavaScript Android tabs', () => {
+    const layout = read('app/(tabs)/_layout.tsx');
+    expect(layout).toContain("expo-router/unstable-native-tabs");
+    expect(layout).toContain("Platform.OS === 'ios'");
+    expect(layout).toContain('IosNativeTabs');
+    expect(layout).toContain('JavaScriptTabs');
   });
 
   it('places Back below the inner edge on Android, not a second status-bar inset', async () => {

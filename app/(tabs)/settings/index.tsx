@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 
 const REPORT_EMAIL = 'caspervandamme03@gmail.com';
 /** Shown as the email subject when users tap “Report an issue”. */
@@ -61,9 +62,18 @@ function SettingsButton({ icon, label, onPress }: SettingsButtonProps) {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabSceneBottomInset();
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top + 8 }]}>
+    <ThemedView
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top + 8,
+          paddingBottom: tabBarInset,
+        },
+      ]}
+    >
       <Text style={styles.title}>Settings</Text>
       <View style={styles.buttons}>
         <SettingsButton

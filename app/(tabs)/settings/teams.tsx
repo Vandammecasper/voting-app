@@ -15,10 +15,12 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { listTeams, MIN_TEAM_MEMBERS, UserTeamWithId } from '@/services/teams';
 
 export default function TeamsScreen() {
   const { user } = useAuth();
+  const tabBarInset = useTabSceneBottomInset();
   const [teams, setTeams] = React.useState<UserTeamWithId[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -65,7 +67,7 @@ export default function TeamsScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[

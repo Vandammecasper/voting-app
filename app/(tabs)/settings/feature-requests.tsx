@@ -18,6 +18,7 @@ import { PrimaryButton } from '@/components/gradient-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
 
@@ -285,6 +286,7 @@ class FeatureRequestsErrorBoundary extends React.Component<
 
 function FeatureRequestsScreenInner() {
   const { user } = useAuth();
+  const tabBarInset = useTabSceneBottomInset();
   const [list, setList] = React.useState<{ id: string; item: FeatureRequestItem }[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
@@ -439,7 +441,7 @@ function FeatureRequestsScreenInner() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingBottom: tabBarInset }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -624,7 +626,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 64,
+    paddingBottom: 16,
     alignItems: 'center',
   },
   addButtonBottom: {},
