@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
 import { restDelete, restGet } from '@/services/firebaseRest';
 import { isTeamLobby } from '@/services/teams';
-import { normalizeRankingList } from '@/services/voteRankings';
+import { rankingsFromLobbyOrVotes, VoteTallyInput } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
@@ -47,12 +47,14 @@ function statusShowsPublicVoteResults(status: string): boolean {
   return status === 'results' || status === 'ranking' || status === 'completed';
 }
 
-function winnersFromLobby(lobbyData: LobbyData): { mvp: string | null; loser: string | null } {
-  const mvpRanking = normalizeRankingList(lobbyData.mvpRanking);
-  const loserRanking = normalizeRankingList(lobbyData.loserRanking);
+function winnersFromLobby(
+  lobbyData: LobbyData,
+  votes?: Record<string, VoteTallyInput> | null
+): { mvp: string | null; loser: string | null } {
+  const rankings = rankingsFromLobbyOrVotes(lobbyData, votes);
   return {
-    mvp: mvpRanking[0]?.name ?? null,
-    loser: loserRanking[0]?.name ?? null,
+    mvp: rankings.mvpRanking[0]?.name ?? null,
+    loser: rankings.loserRanking[0]?.name ?? null,
   };
 }
 
@@ -215,8 +217,12 @@ export default function HistoryScreen() {
         const lobbyData = await restGet<LobbyData>(`lobbies/${lobbyId}`);
 
         if (lobbyData) {
+          let votes: Record<string, VoteTallyInput> | null = null;
+          if (statusShowsPublicVoteResults(lobbyData.status)) {
+            votes = await restGet<Record<string, VoteTallyInput>>(`votes/${lobbyId}`);
+          }
           const winners = statusShowsPublicVoteResults(lobbyData.status)
-            ? winnersFromLobby(lobbyData)
+            ? winnersFromLobby(lobbyData, votes)
             : { mvp: null, loser: null };
           
           historyItems.push({

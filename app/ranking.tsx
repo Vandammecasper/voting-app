@@ -9,7 +9,7 @@ import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
-import { RankingEntry, normalizeRankingList } from '@/services/voteRankings';
+import { RankingEntry, rankingsFromLobbyOrVotes, VoteTallyInput } from '@/services/voteRankings';
 
 interface LobbyData {
   creatorId: string;
@@ -70,11 +70,12 @@ export default function RankingScreen() {
     voteId ? `lobbies/${voteId}` : null,
     2000
   );
+  const { data: votesData } = usePolledRestData<Record<string, VoteTallyInput>>(
+    voteId ? `votes/${voteId}` : null,
+    2000
+  );
 
-  const rankings = {
-    mvpRanking: normalizeRankingList(lobbyData?.mvpRanking),
-    loserRanking: normalizeRankingList(lobbyData?.loserRanking),
-  };
+  const rankings = rankingsFromLobbyOrVotes(lobbyData, votesData);
 
 
   const handleFinish = () => {

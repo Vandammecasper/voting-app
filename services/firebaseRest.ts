@@ -92,20 +92,22 @@ export async function restDelete(path: string): Promise<boolean> {
   }
 }
 
-export async function restPush<T>(path: string, data: T): Promise<string | null> {
-  try {
-    const response = await authedRequest(path, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    if (!response?.ok) {
-      return null;
-    }
-    const result = (await parseJson(response)) as { name?: string } | null;
-    return typeof result?.name === 'string' ? result.name : null;
-  } catch {
-    return null;
+const PUSH_KEY_CHARS =
+  '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+
+export function generateChildKey(): string {
+  const bytes = new Uint8Array(20);
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    throw new Error('Secure random generator is unavailable');
   }
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => PUSH_KEY_CHARS[byte % 64]).join('');
+}
+
+export async function restPush<T>(path: string, data: T): Promise<string | null> {
+  const key = generateChildKey();
+  const written = await restPut(`${path}/${key}`, data);
+  return written ? key : null;
 }
 
 /** Multi-path update from the database root (Firebase REST PATCH). */

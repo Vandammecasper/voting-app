@@ -39,7 +39,7 @@
     },
     "votes": {
       "$lobbyId": {
-        ".read": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid",
+        ".read": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid || (root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'ranking' || root.child('lobbies/' + $lobbyId + '/status').val() === 'completed')))",
         ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && !newData.exists()",
         "$userId": {
           ".read": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",

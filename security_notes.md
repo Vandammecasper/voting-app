@@ -7,7 +7,7 @@ This app has no separate API server. Firebase Realtime Database security rules i
 Access is relationship-based:
 
 - **Creator** of a lobby (`lobbies/$id/creatorId === auth.uid`) may update status, manage participants, read vote bodies, and delete the session.
-- **Participant** (`participants/$lobbyId/$uid` exists) may read the lobby and participant list, submit one vote, and read vote receipts (counts) without comments.
+- **Participant** (`participants/$lobbyId/$uid` exists) may read the lobby and participant list, submit one vote, and read vote receipts (counts) without comments. After the lobby is `ranking` or `completed`, participants may read vote bodies so historical results can be shown when published rankings are missing. While the lobby is still `voting` or `results`, comments stay host/self-only.
 - **Join** always requires a host-approved request. A non-member may write only `joinRequests/$lobbyId/$uid` as `pending`, and must include the lobby `code`. Knowing a lobby push ID is not enough to become a participant or to file a request. The creator admits by writing `participants` (and a name-keyed `claimedNames` slot) then setting the request to `approved` or `denied`.
 - **Participant names** are frozen after join. A member may change `name` only when the creator set `nameChangeRequested`, and only while the lobby is `waiting` or `voting`.
 - **Claimed names** on the publicly readable `lobbyCodes` mapping are keyed by display name, not by Firebase uid, so joiners can omit taken team names without leaking account ids.
@@ -31,7 +31,7 @@ Realtime Database rules cannot rate-limit code lookups. An attacker with anonymo
 - Higher-entropy codes
 - Locked `lobbyCodes` writes (no hijack/remap)
 - Lobby and participant reads restricted to members
-- Vote comments readable only by the voter and the host; rankings are published aggregates
+- Vote comments readable only by the voter and the host until ranking is published; participants can then read votes so old sessions without stored rankings still show results
 
 A Cloud Function that performs join/vote with abuse throttling would further reduce brute-force risk. That is out of scope for the rules-first hardening.
 

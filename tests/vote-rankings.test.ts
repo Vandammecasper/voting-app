@@ -1,4 +1,4 @@
-import { calculateRankings, normalizeRankingList } from '@/services/voteRankings';
+import { calculateRankings, normalizeRankingList, rankingsFromLobbyOrVotes } from '@/services/voteRankings';
 import { generateLobbyCode, LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH } from '@/services/lobbyCode';
 
 describe('generateLobbyCode', () => {
@@ -35,5 +35,24 @@ describe('normalizeRankingList', () => {
   it('accepts arrays and object maps', () => {
     expect(normalizeRankingList([{ name: 'Pat', votes: 2 }])).toEqual([{ name: 'Pat', votes: 2 }]);
     expect(normalizeRankingList({ 0: { name: 'Oak', votes: 1 } })).toEqual([{ name: 'Oak', votes: 1 }]);
+  });
+});
+
+describe('rankingsFromLobbyOrVotes', () => {
+  it('prefers published lobby rankings', () => {
+    const rankings = rankingsFromLobbyOrVotes(
+      { mvpRanking: [{ name: 'Host', votes: 3 }] },
+      { a: { mvpName: 'Pat' } }
+    );
+    expect(rankings.mvpRanking).toEqual([{ name: 'Host', votes: 3 }]);
+  });
+
+  it('falls back to tallying votes when rankings were never published', () => {
+    const rankings = rankingsFromLobbyOrVotes(null, {
+      a: { mvpName: 'Pat', loserName: 'Oak' },
+      b: { mvpName: 'Pat' },
+    });
+    expect(rankings.mvpRanking[0]).toEqual({ name: 'Pat', votes: 2 });
+    expect(rankings.loserRanking[0]).toEqual({ name: 'Oak', votes: 1 });
   });
 });

@@ -122,6 +122,35 @@
           }
         }
       }
+    },
+    "rankedSession": {
+      "lobbies": {
+        "lobby1": {
+          "creatorId": "creator-uid",
+          "creatorName": "Host",
+          "createdAt": 1700000000000,
+          "status": "ranking",
+          "code": "ABCD2345",
+          "voteType": "mvpAndLoser"
+        }
+      },
+      "participants": {
+        "lobby1": {
+          "creator-uid": { "name": "Host", "joinedAt": 1700000000000 },
+          "participant-uid": { "name": "Pat", "joinedAt": 1700000000001 }
+        }
+      },
+      "votes": {
+        "lobby1": {
+          "participant-uid": {
+            "mvpName": "Host",
+            "mvpComment": "clutch save",
+            "loserName": "Oak",
+            "loserComment": "own goal",
+            "submittedAt": 1700000000003
+          }
+        }
+      }
     }
   },
   "cases": [
@@ -212,6 +241,22 @@
       "id": "other-participant-cannot-read-vote-tree",
       "fixture": "votingSession",
       "principal": "otherParticipant",
+      "path": "votes/lobby1",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "participant-can-read-vote-tree-after-ranking",
+      "fixture": "rankedSession",
+      "principal": "participant",
+      "path": "votes/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-read-vote-tree-after-ranking",
+      "fixture": "rankedSession",
+      "principal": "authStranger",
       "path": "votes/lobby1",
       "action": "get",
       "allow": false

@@ -37,6 +37,24 @@ export function calculateRankings(
   };
 }
 
+export function rankingsFromLobbyOrVotes(
+  lobby: { mvpRanking?: unknown; loserRanking?: unknown } | null | undefined,
+  votes: Record<string, VoteTallyInput> | null | undefined
+): {
+  mvpRanking: RankingEntry[];
+  loserRanking: RankingEntry[];
+} {
+  const publishedMvp = normalizeRankingList(lobby?.mvpRanking);
+  const publishedLoser = normalizeRankingList(lobby?.loserRanking);
+  if (publishedMvp.length > 0 || publishedLoser.length > 0) {
+    return {
+      mvpRanking: publishedMvp,
+      loserRanking: publishedLoser,
+    };
+  }
+  return calculateRankings(votes);
+}
+
 export function normalizeRankingList(value: unknown): RankingEntry[] {
   const rows = Array.isArray(value)
     ? value
