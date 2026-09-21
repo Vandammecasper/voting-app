@@ -41,6 +41,15 @@ describe('Android fluid UI contracts', () => {
     expect(layout).not.toMatch(/paddingBottom:\s*Platform\.OS === 'android'/);
     expect(layout).not.toMatch(/height:\s*52 \+/);
     expect(layout).toContain('tabBarStyle');
+    expect(layout).toContain('detachInactiveScreens={false}');
+  });
+
+  it('keeps tabs off the root back-gesture stack so the bar stays tappable', () => {
+    const layout = read('app/_layout.tsx');
+    expect(layout).toContain('Stack.Protected');
+    expect(layout).toContain('gestureEnabled: false');
+    expect(layout).toContain("name=\"(tabs)\"");
+    expect(layout).not.toContain('unstable-native-tabs');
   });
 
   it('wraps the draft sheet Modal in a GestureHandlerRootView (Android native window)', () => {
@@ -59,9 +68,10 @@ describe('Android fluid UI contracts', () => {
   });
 
   it('hides the empty Settings stack header so Android does not show a blank bar', () => {
-    expect(read('app/(tabs)/settings/_layout.tsx')).toContain(
-      'name="index" options={{ headerShown: false'
-    );
+    const settingsLayout = read('app/(tabs)/settings/_layout.tsx');
+    expect(settingsLayout).toContain('name="index"');
+    expect(settingsLayout).toContain('headerShown: false');
+    expect(settingsLayout).toContain('gestureEnabled: false');
   });
 
   it('places Back below the inner edge on Android, not a second status-bar inset', async () => {

@@ -13,12 +13,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { applyRootBackground, rootStackScreenOptions, statusBarProps } from '@/constants/systemBars';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { OnboardingProvider, useOnboarding } from '@/contexts/OnboardingContext';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
 
 applyRootBackground();
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: '(tabs)',
 };
 
 // Custom dark theme with #292929 background
@@ -33,11 +34,20 @@ const AppTheme = {
   },
 };
 
+const hiddenStackScreen = {
+  headerShown: false,
+  headerBackVisible: false,
+  gestureEnabled: false,
+  fullScreenGestureEnabled: false,
+  animation: 'none',
+} as const;
+
 function RootLayoutNav() {
   const { isLoading } = useAuth();
-  useVersionCheck(!isLoading);
+  const { onboarded } = useOnboarding();
+  useVersionCheck(!isLoading && onboarded === true);
 
-  if (isLoading) {
+  if (isLoading || onboarded === null) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.tint} />
@@ -48,51 +58,19 @@ function RootLayoutNav() {
   return (
     <>
       <Stack screenOptions={rootStackScreenOptions}>
-        <Stack.Screen 
-          name="onboarding" 
-          options={{ 
-            headerShown: false,
-            headerBackVisible: false,
-            gestureEnabled: false,
-          }} 
-        />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="waitingRoom" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
-        <Stack.Screen 
-          name="userInput" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
-        <Stack.Screen 
-          name="voting" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
-        <Stack.Screen 
-          name="votingWaiting" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
-        <Stack.Screen 
-          name="results" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
-        <Stack.Screen 
-          name="ranking" 
-          options={{ 
-            headerShown: false,
-          }} 
-        />
+        <Stack.Protected guard={!onboarded}>
+          <Stack.Screen name="index" options={hiddenStackScreen} />
+          <Stack.Screen name="onboarding" options={hiddenStackScreen} />
+        </Stack.Protected>
+        <Stack.Protected guard={onboarded}>
+          <Stack.Screen name="(tabs)" options={hiddenStackScreen} />
+          <Stack.Screen name="waitingRoom" options={{ headerShown: false }} />
+          <Stack.Screen name="userInput" options={{ headerShown: false }} />
+          <Stack.Screen name="voting" options={{ headerShown: false }} />
+          <Stack.Screen name="votingWaiting" options={{ headerShown: false }} />
+          <Stack.Screen name="results" options={{ headerShown: false }} />
+          <Stack.Screen name="ranking" options={{ headerShown: false }} />
+        </Stack.Protected>
       </Stack>
       {Platform.OS !== 'android' ? <StatusBar {...statusBarProps} /> : null}
     </>
@@ -121,11 +99,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>
-        <AuthProvider>
-          <ThemeProvider value={AppTheme}>
-            <RootLayoutNav />
-          </ThemeProvider>
-        </AuthProvider>
+        <OnboardingProvider>
+          <AuthProvider>
+            <ThemeProvider value={AppTheme}>
+              <RootLayoutNav />
+            </ThemeProvider>
+          </AuthProvider>
+        </OnboardingProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

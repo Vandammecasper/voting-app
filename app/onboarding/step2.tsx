@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { setOnboardingCompleted } from '@/services/onboardingStorage';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 
 const VIDEO_SOURCES = {
   createLobby: require('@/assets/images/createLobby.mov'),
@@ -24,6 +24,7 @@ const VIDEO_SOURCES = {
 type OnboardingVideo = keyof typeof VIDEO_SOURCES;
 
 export default function OnboardingStep2() {
+  const { markCompleted } = useOnboarding();
   const screenWidth = Dimensions.get('window').width;
   const [iphoneWidth, setIphoneWidth] = useState<number>(300);
   const [iphoneHeight, setIphoneHeight] = useState<number>(600);
@@ -191,8 +192,8 @@ export default function OnboardingStep2() {
       goToStep(currentStep + 1);
       return;
     }
-    await setOnboardingCompleted();
-    router.push('/(tabs)');
+    await markCompleted();
+    router.replace('/(tabs)');
   };
 
   const handleGoBack = () => {

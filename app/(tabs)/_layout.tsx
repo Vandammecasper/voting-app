@@ -8,6 +8,7 @@ import { Colors } from '@/constants/theme';
 export default function TabLayout() {
   return (
     <Tabs
+      detachInactiveScreens={false}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.tint,
@@ -20,6 +21,8 @@ export default function TabLayout() {
           backgroundColor: Colors.background,
           borderTopColor: '#3a3a3a',
           borderTopWidth: 1,
+          zIndex: 100,
+          elevation: 100,
         },
       }}
     >
