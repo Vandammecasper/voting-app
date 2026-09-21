@@ -1,5 +1,6 @@
 import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
 import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { fillRandomBytes } from '@/services/randomBytes';
 
 export type RestFailure = {
   ok: false;
@@ -210,10 +211,7 @@ const PUSH_KEY_CHARS =
 
 export function generateChildKey(): string {
   const bytes = new Uint8Array(20);
-  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
-    throw new Error('Secure random generator is unavailable');
-  }
-  globalThis.crypto.getRandomValues(bytes);
+  fillRandomBytes(bytes);
   return Array.from(bytes, (byte) => PUSH_KEY_CHARS[byte % 64]).join('');
 }
 
