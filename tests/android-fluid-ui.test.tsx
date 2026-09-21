@@ -42,6 +42,8 @@ describe('Android fluid UI contracts', () => {
     expect(layout).not.toMatch(/height:\s*52 \+/);
     expect(layout).toContain('tabBarStyle');
     expect(layout).toContain('detachInactiveScreens={false}');
+    expect(layout).toContain('safeAreaInsets={insets}');
+    expect(layout).toContain('paddingBottom: tabBarHeight');
   });
 
   it('keeps tabs off the root back-gesture stack so the bar stays tappable', () => {

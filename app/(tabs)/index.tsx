@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -7,8 +8,10 @@ import { ThemedView } from '@/components/themed-view';
 import { defaultFontFamily } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
         <GradientText
           text="MVP"
@@ -31,7 +34,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: 48,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   hero: {
     flex: 1,
