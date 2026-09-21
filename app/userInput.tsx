@@ -18,7 +18,9 @@ import {
 import { restDelete, restGet, restPush, restPut } from '@/services/firebaseRest';
 import {
   availableMemberNames,
+  claimedNameKey,
   claimedNameSet,
+  claimedNameSlotPath,
   isTeamLobby,
   listTeams,
   MIN_TEAM_MEMBERS,
@@ -34,12 +36,6 @@ interface JoinableLobbyData {
   teamName?: string;
   teamMembers?: string[] | Record<string, string>;
   claimedNames?: Record<string, string> | string[];
-}
-
-interface ParticipantData {
-  name: string;
-  joinedAt: number;
-  nameChangeRequested?: boolean;
 }
 
 function lobbyIdFromCodeMapping(value: LobbyCodeMapping | string | null): string | null {
@@ -241,7 +237,7 @@ export default function UserInputScreen() {
         lobbyId,
         status: 'waiting',
         voteType,
-        claimedNames: { [user.uid]: name.trim() },
+        claimedNames: { [claimedNameKey(name)]: name.trim() },
         ...(useTeam && selectedTeam
           ? {
               teamName: selectedTeam.name,
@@ -261,7 +257,7 @@ export default function UserInputScreen() {
         joinedAt: Date.now(),
       });
 
-      await restPut(`lobbyCodes/${code}/claimedNames/${user.uid}`, name.trim());
+      await restPut(claimedNameSlotPath(code, name), name.trim());
 
       await restPut(`userHistory/${user.uid}/${lobbyId}`, {
         lobbyId,
@@ -339,45 +335,17 @@ export default function UserInputScreen() {
         }
       }
 
-      if (lobbyData.status === 'voting') {
-        const requestOk = await restPut(`joinRequests/${lobbyId}/${user.uid}`, {
-          name: name.trim(),
-          requestedAt: Date.now(),
-          status: 'pending',
-        });
-        if (!requestOk) {
-          Alert.alert("Couldn't send request", 'Please try again.');
-          return;
-        }
-        setPendingJoin({ lobbyId });
-        return;
-      }
-
-      const participantData: ParticipantData = {
+      const requestOk = await restPut(`joinRequests/${lobbyId}/${user.uid}`, {
         name: name.trim(),
-        joinedAt: Date.now(),
-        nameChangeRequested: false,
-      };
-
-      const writeSuccess = await restPut(`participants/${lobbyId}/${user.uid}`, participantData);
-      
-      if (!writeSuccess) {
-        console.error('❌ Failed to add participant');
-        Alert.alert("Couldn't join lobby", 'Please try again.');
+        requestedAt: Date.now(),
+        status: 'pending',
+        code,
+      });
+      if (!requestOk) {
+        Alert.alert("Couldn't send request", 'Please try again.');
         return;
       }
-
-      await restPut(`lobbyCodes/${code}/claimedNames/${user.uid}`, name.trim());
-
-      await restPut(`userHistory/${user.uid}/${lobbyId}`, {
-        lobbyId,
-        joinedAt: Date.now(),
-      });
-
-      router.push({
-        pathname: '/waitingRoom',
-        params: { voteId: lobbyId },
-      });
+      setPendingJoin({ lobbyId });
     } catch (error) {
       console.error('❌ Error joining vote:', error);
       Alert.alert("Couldn't join lobby", 'Please try again.');
@@ -425,7 +393,7 @@ export default function UserInputScreen() {
         <View style={styles.pendingWrap}>
           <Text style={styles.title}>Waiting for the host</Text>
           <Text style={styles.pendingSubtitle}>
-            Your request to join has been sent. You can enter the vote once the host admits you.
+            Your request to join has been sent. You can enter once the host admits you.
           </Text>
           <View style={styles.buttonContainer}>
             <PrimaryButton onPress={handleCancelJoinRequest}>Cancel request</PrimaryButton>
@@ -595,9 +563,7 @@ export default function UserInputScreen() {
                 : isJoinMode
                   ? alreadyMember
                     ? 'Rejoin'
-                    : joinLobby?.status === 'voting'
-                      ? 'Request to join'
-                      : 'Join'
+                    : 'Request to join'
                   : 'Create'}
             </PrimaryButton>
           </View>

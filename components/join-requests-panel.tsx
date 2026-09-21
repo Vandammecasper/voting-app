@@ -3,11 +3,13 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { restPatch, restPut } from '@/services/firebaseRest';
+import { claimedNameSlotPath } from '@/services/teams';
 
 export interface JoinRequest {
   name: string;
   requestedAt: number;
   status: 'pending' | 'approved' | 'denied';
+  code: string;
 }
 
 export type JoinRequestsMap = Record<string, JoinRequest>;
@@ -43,7 +45,7 @@ export function JoinRequestsPanel({ voteId, code, requests }: JoinRequestsPanelP
       return;
     }
     if (code) {
-      await restPut(`lobbyCodes/${code}/claimedNames/${userId}`, request.name.trim());
+      await restPut(claimedNameSlotPath(code, request.name), request.name.trim());
     }
     const updated = await restPatch(`joinRequests/${voteId}/${userId}`, { status: 'approved' });
     if (!updated) {

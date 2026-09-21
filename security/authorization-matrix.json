@@ -23,7 +23,7 @@
         "lobby1": {
           "creator-uid": { "name": "Host", "joinedAt": 1700000000000 },
           "participant-uid": { "name": "Pat", "joinedAt": 1700000000001 },
-          "other-uid": { "name": "Oak", "joinedAt": 1700000000002 }
+          "other-uid": { "name": "Oak", "joinedAt": 1700000000002, "nameChangeRequested": true }
         }
       },
       "votes": {
@@ -48,9 +48,9 @@
           "status": "voting",
           "voteType": "mvpAndLoser",
           "claimedNames": {
-            "creator-uid": "Host",
-            "participant-uid": "Pat",
-            "other-uid": "Oak"
+            "Host": "Host",
+            "Pat": "Pat",
+            "Oak": "Oak"
           }
         }
       },
@@ -59,7 +59,8 @@
           "pending-uid": {
             "name": "Quinn",
             "requestedAt": 1700000000100,
-            "status": "pending"
+            "status": "pending",
+            "code": "ABCD2345"
           }
         }
       },
@@ -117,7 +118,7 @@
           "status": "waiting",
           "voteType": "mvpOnly",
           "claimedNames": {
-            "creator-uid": "Host"
+            "Host": "Host"
           }
         }
       }
@@ -191,13 +192,13 @@
       "allow": false
     },
     {
-      "id": "stranger-can-join-waiting-lobby-with-code",
+      "id": "stranger-cannot-self-join-waiting-lobby",
       "fixture": "waitingJoin",
       "principal": "authStranger",
       "path": "participants/lobby2/stranger-uid",
       "action": "set",
       "data": { "name": "Eve", "joinedAt": 1700000000999 },
-      "allow": true
+      "allow": false
     },
     {
       "id": "stranger-cannot-read-vote-tree",
@@ -471,7 +472,7 @@
       "principal": "authStranger",
       "path": "joinRequests/lobby1/stranger-uid",
       "action": "set",
-      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending" },
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending", "code": "ABCD2345" },
       "allow": true
     },
     {
@@ -480,14 +481,32 @@
       "principal": "authStranger",
       "path": "joinRequests/lobby1/stranger-uid",
       "action": "set",
-      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "approved" },
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "approved", "code": "ABCD2345" },
       "allow": false
     },
     {
-      "id": "stranger-cannot-request-join-while-waiting",
+      "id": "stranger-can-request-join-while-waiting",
       "fixture": "waitingJoin",
       "principal": "authStranger",
       "path": "joinRequests/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending", "code": "EFGH6789" },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-request-join-with-wrong-code",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending", "code": "WRONGCOD" },
+      "allow": false
+    },
+    {
+      "id": "stranger-cannot-request-join-without-code",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "joinRequests/lobby1/stranger-uid",
       "action": "set",
       "data": { "name": "Eve", "requestedAt": 1700000000999, "status": "pending" },
       "allow": false
@@ -498,7 +517,7 @@
       "principal": "participant",
       "path": "joinRequests/lobby1/participant-uid",
       "action": "set",
-      "data": { "name": "Pat", "requestedAt": 1700000000999, "status": "pending" },
+      "data": { "name": "Pat", "requestedAt": 1700000000999, "status": "pending", "code": "ABCD2345" },
       "allow": false
     },
     {
@@ -571,10 +590,28 @@
       "allow": true
     },
     {
+      "id": "participant-cannot-rename-without-request",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "participants/lobby1/participant-uid",
+      "action": "update",
+      "data": { "name": "Pat2", "nameChangeRequested": false },
+      "allow": false
+    },
+    {
+      "id": "participant-can-rename-when-requested",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "participants/lobby1/other-uid",
+      "action": "update",
+      "data": { "name": "Oak2", "nameChangeRequested": false },
+      "allow": true
+    },
+    {
       "id": "participant-can-write-own-claimed-name",
       "fixture": "votingSession",
       "principal": "participant",
-      "path": "lobbyCodes/ABCD2345/claimedNames/participant-uid",
+      "path": "lobbyCodes/ABCD2345/claimedNames/Pat",
       "action": "set",
       "data": "Pat",
       "allow": true
@@ -583,7 +620,7 @@
       "id": "participant-cannot-write-others-claimed-name",
       "fixture": "votingSession",
       "principal": "participant",
-      "path": "lobbyCodes/ABCD2345/claimedNames/other-uid",
+      "path": "lobbyCodes/ABCD2345/claimedNames/Oak",
       "action": "set",
       "data": "Stolen",
       "allow": false
@@ -592,7 +629,7 @@
       "id": "stranger-cannot-write-claimed-name",
       "fixture": "waitingJoin",
       "principal": "authStranger",
-      "path": "lobbyCodes/EFGH6789/claimedNames/stranger-uid",
+      "path": "lobbyCodes/EFGH6789/claimedNames/Eve",
       "action": "set",
       "data": "Eve",
       "allow": false
@@ -601,7 +638,7 @@
       "id": "creator-can-write-claimed-name-for-joiner",
       "fixture": "votingSession",
       "principal": "creator",
-      "path": "lobbyCodes/ABCD2345/claimedNames/pending-uid",
+      "path": "lobbyCodes/ABCD2345/claimedNames/Quinn",
       "action": "set",
       "data": "Quinn",
       "allow": true

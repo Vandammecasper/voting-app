@@ -19,6 +19,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { restDelete, restGet, restPatch, restPut } from '@/services/firebaseRest';
 import {
   availableMemberNames,
+  claimedNameSlotPath,
   claimedParticipantNames,
   isTeamLobby,
   normalizeMemberList,
@@ -371,10 +372,14 @@ export default function WaitingRoomScreen() {
           style: 'destructive',
           onPress: async () => {
             shownNameChangePromptKeys.delete(key);
-            await restDelete(`participants/${voteId}/${user.uid}`);
             if (lobbyData?.code) {
+              const current = (participantsData?.[user.uid]?.name ?? '').trim();
+              if (current) {
+                await restDelete(claimedNameSlotPath(lobbyData.code, current));
+              }
               await restDelete(`lobbyCodes/${lobbyData.code}/claimedNames/${user.uid}`);
             }
+            await restDelete(`participants/${voteId}/${user.uid}`);
             await restDelete(`userHistory/${user.uid}/${voteId}`);
             router.replace('/');
           },
@@ -420,6 +425,11 @@ export default function WaitingRoomScreen() {
     }
     
     // Update name and clear the request flag
+    if (lobbyData?.code && currentName) {
+      await restDelete(claimedNameSlotPath(lobbyData.code, currentName));
+      await restDelete(`lobbyCodes/${lobbyData.code}/claimedNames/${user.uid}`);
+    }
+
     const success = await restPatch(`participants/${voteId}/${user.uid}`, {
       name: nextName,
       nameChangeRequested: false,
@@ -427,7 +437,7 @@ export default function WaitingRoomScreen() {
     
     if (success) {
       if (lobbyData?.code) {
-        await restPut(`lobbyCodes/${lobbyData.code}/claimedNames/${user.uid}`, nextName);
+        await restPut(claimedNameSlotPath(lobbyData.code, nextName), nextName);
       }
       setShowNameInputModal(false);
       shownNameChangePromptKeys.delete(`${voteId}-${user.uid}`);
@@ -470,10 +480,11 @@ export default function WaitingRoomScreen() {
           text: 'Remove from Lobby',
           style: 'destructive',
           onPress: async () => {
-            const success = await restDelete(`participants/${voteId}/${participant.id}`);
-            if (success && lobbyData?.code) {
+            if (lobbyData?.code) {
+              await restDelete(claimedNameSlotPath(lobbyData.code, participant.name));
               await restDelete(`lobbyCodes/${lobbyData.code}/claimedNames/${participant.id}`);
             }
+            const success = await restDelete(`participants/${voteId}/${participant.id}`);
             if (!success) {
               Alert.alert('Error', 'Failed to remove participant. Please try again.');
             }

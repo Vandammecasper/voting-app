@@ -8,9 +8,9 @@ Access is relationship-based:
 
 - **Creator** of a lobby (`lobbies/$id/creatorId === auth.uid`) may update status, manage participants, read vote bodies, and delete the session.
 - **Participant** (`participants/$lobbyId/$uid` exists) may read the lobby and participant list, submit one vote, and read vote receipts (counts) without comments.
-- **Join** is allowed while the lobby is `waiting` and `lobbyCodes/{lobby.code}` maps to that lobby. Knowing a lobby push ID is not enough.
-- **Late join** after voting starts is a host-approved request: a non-member may write only `joinRequests/$lobbyId/$uid` as `pending`. The creator admits by writing `participants` (and `claimedNames`) then setting the request to `approved` or `denied`. Requesters cannot self-join `participants` during `voting`.
-- **Claimed names** live on the publicly readable `lobbyCodes` mapping so joiners can omit taken team names before they are members. Only that participant or the lobby creator may write a claimed-name slot.
+- **Join** always requires a host-approved request. A non-member may write only `joinRequests/$lobbyId/$uid` as `pending`, and must include the lobby `code`. Knowing a lobby push ID is not enough to become a participant or to file a request. The creator admits by writing `participants` (and a name-keyed `claimedNames` slot) then setting the request to `approved` or `denied`.
+- **Participant names** are frozen after join. A member may change `name` only when the creator set `nameChangeRequested`, and only while the lobby is `waiting` or `voting`.
+- **Claimed names** on the publicly readable `lobbyCodes` mapping are keyed by display name, not by Firebase uid, so joiners can omit taken team names without leaking account ids.
 
 Do not replace this with a flat `role: host | player` field on the user or participant record. A client-written `isCreator` flag was removed for that reason.
 

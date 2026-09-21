@@ -163,6 +163,14 @@ export async function deleteTeam(userId: string, teamId: string): Promise<boolea
   return restDelete(`${path}/${teamId}`);
 }
 
+export function claimedNameKey(name: string): string {
+  return encodeURIComponent(name.trim()).replace(/\./g, '%2E');
+}
+
+export function claimedNameSlotPath(code: string, name: string): string {
+  return `lobbyCodes/${code}/claimedNames/${claimedNameKey(name)}`;
+}
+
 export function claimedNameSet(claimed: unknown): Set<string> {
   const names = new Set<string>();
   if (Array.isArray(claimed)) {
@@ -174,9 +182,11 @@ export function claimedNameSet(claimed: unknown): Set<string> {
     return names;
   }
   if (claimed && typeof claimed === 'object') {
-    for (const value of Object.values(claimed as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(claimed as Record<string, unknown>)) {
       if (typeof value === 'string' && value.trim()) {
         names.add(value.trim());
+      } else if (value === true && key.trim()) {
+        names.add(key.trim());
       }
     }
   }
