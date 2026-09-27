@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
@@ -35,14 +35,29 @@ interface VoteData {
 
 type VotesData = Record<string, VoteData>;
 
+type ShuffledVote = VoteData & { id: string };
+
 /** Shuffle copy of array (Fisher–Yates) so reveal order is not submission order. */
-function shuffleInPlace<T>(items: T[]): T[] {
+function shuffleCopy<T>(items: T[]): T[] {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+/** Keep an existing reveal order stable; only shuffle newly arrived vote ids. */
+function buildStableShuffledOrder(voteIds: string[], previousOrder: string[]): string[] {
+  if (previousOrder.length === 0) {
+    return shuffleCopy(voteIds);
+  }
+
+  const currentIds = new Set(voteIds);
+  const kept = previousOrder.filter((id) => currentIds.has(id));
+  const known = new Set(kept);
+  const newcomers = shuffleCopy(voteIds.filter((id) => !known.has(id)));
+  return [...kept, ...newcomers];
 }
 
 export default function ResultsScreen() {
@@ -55,18 +70,22 @@ export default function ResultsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentVoteIndex, setCurrentVoteIndex] = useState(0);
   const [isPublishingRanking, setIsPublishingRanking] = useState(false);
+  const shuffleOrderRef = useRef<string[]>([]);
+  const shuffleVoteIdRef = useRef<string | null>(null);
 
   // Poll lobby data to detect status changes
   const { data: lobbyData, isLoading: lobbyLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
   );
-  const isCreator = Boolean(user && lobbyData && user.uid === lobbyData.creatorId);
+  const creatorId = lobbyData?.creatorId;
+  const isCreator = Boolean(user && creatorId && user.uid === creatorId);
 
+  // Fetch votes once the creator is known — do not re-fetch on every lobby poll
   useEffect(() => {
     async function fetchData() {
-      if (!voteId || !lobbyData || !user) return;
-      if (user.uid !== lobbyData.creatorId) {
+      if (!voteId || !user || !creatorId) return;
+      if (user.uid !== creatorId) {
         setVotesData(null);
         setIsLoading(false);
         return;
@@ -78,7 +97,7 @@ export default function ResultsScreen() {
     }
 
     fetchData();
-  }, [voteId, user, lobbyData]);
+  }, [voteId, user, creatorId]);
 
   // Auto-navigate to ranking when the host publishes it
   useEffect(() => {
@@ -90,11 +109,23 @@ export default function ResultsScreen() {
     }
   }, [lobbyData?.status, voteId, from]);
 
-  // Convert votes to array in random order (not submission order) for reading aloud
-  const votesArray = useMemo(() => {
+  // Convert votes to array in a stable random order (not submission order) for reading aloud
+  const votesArray = useMemo((): ShuffledVote[] => {
     if (!votesData) return [];
-    return shuffleInPlace(Object.values(votesData));
-  }, [votesData]);
+
+    if (shuffleVoteIdRef.current !== voteId) {
+      shuffleVoteIdRef.current = voteId ?? null;
+      shuffleOrderRef.current = [];
+    }
+
+    const voteIds = Object.keys(votesData);
+    shuffleOrderRef.current = buildStableShuffledOrder(voteIds, shuffleOrderRef.current);
+
+    return shuffleOrderRef.current.flatMap((id) => {
+      const vote = votesData[id];
+      return vote ? [{ id, ...vote }] : [];
+    });
+  }, [votesData, voteId]);
 
   const totalVotes = votesArray.length;
   const hasPreviousVote = currentVoteIndex > 0;
@@ -214,8 +245,8 @@ export default function ResultsScreen() {
             onIndexChange={setCurrentVoteIndex}
             pageWidth={pageWidth}
           >
-            {votesArray.map((vote, voteIndex) => (
-              <View key={voteIndex} style={styles.resultsCard}>
+            {votesArray.map((vote) => (
+              <View key={vote.id} style={styles.resultsCard}>
                 <View style={styles.resultSection}>
                   <Text style={styles.resultLabel}>MVP: {vote.mvpName.toUpperCase()}</Text>
                   <Text style={styles.resultComment}>{vote.mvpComment}</Text>
