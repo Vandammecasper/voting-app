@@ -35,6 +35,7 @@ import {
   saveVoteDraft,
   VoteDraftInput,
 } from '@/services/voteDraftStorage';
+import { scale, useScale } from '@/utils/scale';
 
 const shownNameChangePromptKeys = new Set<string>();
 
@@ -179,6 +180,7 @@ interface DisplayParticipant {
 export default function WaitingRoomScreen() {
   const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
+  const { s } = useScale();
   const [isStarting, setIsStarting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showNameInputModal, setShowNameInputModal] = useState(false);
@@ -641,7 +643,7 @@ export default function WaitingRoomScreen() {
       </View>
 
       <View style={styles.centerSection}>
-        <Text style={{ fontSize: 40, fontWeight: 'bold', textAlign: 'center', color: '#D9D9D9', fontFamily: defaultFontFamily }}>
+        <Text style={{ fontSize: s(40), fontWeight: 'bold', textAlign: 'center', color: '#D9D9D9', fontFamily: defaultFontFamily }}>
           Waiting for others to join
         </Text>
         <WaitingLoader />
@@ -708,8 +710,8 @@ export default function WaitingRoomScreen() {
         <View style={styles.buttonContainer}>
           {showStartVoting && (
             <PrimaryButton 
-              style={{ marginHorizontal: 24 }} 
-              textStyle={{ fontSize: 24, fontWeight: 'bold' }} 
+              style={{ marginHorizontal: s(24) }} 
+              textStyle={{ fontSize: s(24), fontWeight: 'bold' }} 
               onPress={handleStartVoting}
               disabled={isStarting}
             >
@@ -718,8 +720,8 @@ export default function WaitingRoomScreen() {
           )}
           {showDraftVote ? (
             <SecondaryButton
-              style={{ marginHorizontal: 24 }}
-              textStyle={{ fontSize: 18 }}
+              style={{ marginHorizontal: s(24) }}
+              textStyle={{ fontSize: s(18) }}
               onPress={() => setShowDraftPanel(true)}
             >
               {hasSavedDraft ? 'edit draft vote' : 'draft vote'}
@@ -808,27 +810,27 @@ export default function WaitingRoomScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: scale(24),
   },
   topSection: {
-    paddingTop: 80,
+    paddingTop: scale(80),
     width: '100%',
     alignItems: 'center',
   },
   codeButton: {
     width: '100%',
-    minHeight: 48,
-    borderRadius: 28,
+    minHeight: scale(48),
+    borderRadius: scale(28),
     borderWidth: 2,
     borderColor: '#6E92FF',
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     alignItems: 'center',
     justifyContent: 'center',
   },
   codeText: {
     width: '100%',
     color: '#6E92FF',
-    fontSize: 22,
+    fontSize: scale(22),
     fontWeight: '700',
     letterSpacing: 3,
     textAlign: 'center',
@@ -836,41 +838,41 @@ const styles = StyleSheet.create({
   },
   centerSection: {
     flex: 1,
-    marginTop: 20,
+    marginTop: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
   },
   bottomSection: {
     width: '100%',
-    paddingBottom: 40,
+    paddingBottom: scale(40),
   },
   joinRequestsWrap: {
-    paddingHorizontal: 24,
-    marginBottom: 12,
+    paddingHorizontal: scale(24),
+    marginBottom: scale(12),
   },
   boxBorder: {
-    borderRadius: 20,
+    borderRadius: scale(20),
     padding: 2,
-    marginTop: 36,
+    marginTop: scale(36),
     width: '100%',
   },
   boxInner: {
     backgroundColor: Colors.background,
-    borderRadius: 18,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
+    borderRadius: scale(18),
+    paddingVertical: scale(28),
+    paddingHorizontal: scale(20),
   },
   boxTitle: {
-    fontSize: 28,
+    fontSize: scale(28),
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: scale(20),
     color: '#6E92FF',
     fontFamily: defaultFontFamily,
   },
   participantsScroll: {
-    height: 220,
+    height: scale(220),
   },
   participantsGrid: {
     flexDirection: 'row',
@@ -882,10 +884,10 @@ const styles = StyleSheet.create({
   },
   participantName: {
     color: Colors.text,
-    fontSize: 18,
+    fontSize: scale(18),
     fontWeight: '500',
     textAlign: 'center',
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     fontFamily: defaultFontFamily,
   },
   creatorName: {
@@ -903,19 +905,19 @@ const styles = StyleSheet.create({
   },
   waitingCount: {
     color: Colors.icon,
-    fontSize: 16,
-    marginTop: 16,
+    fontSize: scale(16),
+    marginTop: scale(16),
     fontFamily: defaultFontFamily,
   },
   buttonContainer: {
-    marginTop: 24,
+    marginTop: scale(24),
     width: '100%',
-    gap: 16,
+    gap: scale(16),
   },
   exitButton: {
     position: 'absolute',
-    top: 60,
-    right: 24,
+    top: scale(60),
+    right: scale(24),
     zIndex: 1000,
     padding: 8,
   },
@@ -924,7 +926,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: scale(32),
   },
   modalKeyboardAvoid: {
     flex: 1,
@@ -934,29 +936,29 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.background,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: scale(16),
+    padding: scale(24),
     width: '100%',
     maxWidth: 320,
   },
   modalTitle: {
     color: '#D9D9D9',
-    fontSize: 20,
+    fontSize: scale(20),
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
     fontFamily: defaultFontFamily,
   },
   modalSubtitle: {
     color: '#D9D9D9',
-    fontSize: 14,
+    fontSize: scale(14),
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: scale(20),
     fontFamily: defaultFontFamily,
   },
   modalDropdown: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: scale(20),
     zIndex: 20,
   },
   modalInput: {
@@ -964,11 +966,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderColor: Colors.icon,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(14),
+    fontSize: scale(16),
     color: Colors.text,
-    marginBottom: 20,
+    marginBottom: scale(20),
     fontFamily: defaultFontFamily,
   },
   modalButtons: {
@@ -977,27 +979,27 @@ const styles = StyleSheet.create({
   },
   modalButtonCancel: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderRadius: 10,
     backgroundColor: '#3A3A3A',
     alignItems: 'center',
   },
   modalButtonCancelText: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: '600',
     fontFamily: defaultFontFamily,
   },
   modalButtonSubmit: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderRadius: 10,
     backgroundColor: '#6E92FF',
     alignItems: 'center',
   },
   modalButtonSubmitText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: '600',
     fontFamily: defaultFontFamily,
   },

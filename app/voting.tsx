@@ -27,6 +27,7 @@ import { restGet, restUpdatePaths } from '@/services/firebaseRest';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import { mvpVoteOptions } from '@/services/voteOptions';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
+import { scale } from '@/utils/scale';
 
 interface Participant {
   name: string;
@@ -440,63 +441,63 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 24,
+    paddingHorizontal: scale(24),
+    paddingTop: scale(80),
+    paddingBottom: scale(24),
   },
   title: {
-    fontSize: 36,
+    fontSize: scale(36),
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: scale(32),
     fontFamily: defaultFontFamily,
   },
   joinRequestsWrap: {
-    marginBottom: 24,
+    marginBottom: scale(24),
   },
   sectionLabel: {
     color: '#D9D9D9',
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: '500',
-    marginBottom: 8,
-    marginTop: 16,
+    marginBottom: scale(8),
+    marginTop: scale(16),
     fontFamily: defaultFontFamily,
   },
   input: {
     width: '100%',
-    height: 48,
+    height: scale(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: scale(16),
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontFamily: defaultFontFamily,
   },
   textArea: {
-    height: 100,
-    paddingTop: 12,
-    paddingBottom: 12,
+    height: scale(100),
+    paddingTop: scale(12),
+    paddingBottom: scale(12),
   },
   buttonContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
-    gap: 16,
+    paddingHorizontal: scale(24),
+    paddingTop: scale(16),
+    paddingBottom: scale(40),
+    gap: scale(16),
   },
   submitButton: {
     marginHorizontal: 0,
   },
   submitButtonText: {
-    fontSize: 20,
+    fontSize: scale(20),
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
   exitButton: {
     position: 'absolute',
-    top: 60,
-    right: 24,
+    top: scale(60),
+    right: scale(24),
     zIndex: 1000,
     padding: 8,
   },

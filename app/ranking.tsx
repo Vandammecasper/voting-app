@@ -11,6 +11,7 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { RankingEntry, rankingsFromLobbyOrVotes, VoteTallyInput } from '@/services/voteRankings';
+import { scale } from '@/utils/scale';
 
 interface LobbyData {
   creatorId: string;
@@ -181,9 +182,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(80),
+    paddingBottom: scale(40),
   },
   centerContent: {
     flex: 1,
@@ -192,19 +193,19 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: Colors.text,
-    fontSize: 18,
+    fontSize: scale(18),
     fontFamily: defaultFontFamily,
   },
   title: {
-    fontSize: 32,
+    fontSize: scale(32),
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: scale(24),
     fontFamily: defaultFontFamily,
   },
   rankingsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: scale(12),
   },
   rankingColumn: {
     flex: 1,
@@ -216,22 +217,22 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   sectionIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: scale(8),
   },
   loserIconBg: {
     backgroundColor: '#FF6B6B',
   },
   sectionTitle: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
@@ -243,8 +244,8 @@ const styles = StyleSheet.create({
   rankingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(10),
     borderBottomWidth: 1,
     borderBottomColor: '#4a4a4a',
   },
@@ -255,13 +256,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
   },
   positionContainer: {
-    width: 28,
+    width: scale(28),
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: scale(8),
   },
   positionNumber: {
     color: Colors.icon,
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   },
   rankingName: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: scale(14),
     fontWeight: '500',
     fontFamily: defaultFontFamily,
   },
@@ -281,27 +282,27 @@ const styles = StyleSheet.create({
   },
   rankingVotes: {
     color: Colors.icon,
-    fontSize: 11,
+    fontSize: scale(11),
     marginTop: 1,
     fontFamily: defaultFontFamily,
   },
   winnerEmoji: {
-    fontSize: 16,
+    fontSize: scale(16),
     marginLeft: 4,
     fontFamily: defaultFontFamily,
   },
   noDataText: {
     color: Colors.icon,
-    fontSize: 13,
+    fontSize: scale(13),
     textAlign: 'center',
-    paddingVertical: 16,
+    paddingVertical: scale(16),
     fontFamily: defaultFontFamily,
   },
   finishButton: {
-    marginTop: 32,
+    marginTop: scale(32),
   },
   finishButtonText: {
-    fontSize: 20,
+    fontSize: scale(20),
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },

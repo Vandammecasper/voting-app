@@ -7,6 +7,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
+import { scale } from '@/utils/scale';
 
 const REPORT_EMAIL = 'caspervandamme03@gmail.com';
 /** Shown as the email subject when users tap “Report an issue”. */
@@ -114,20 +115,20 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: scale(24),
   },
   title: {
-    fontSize: 28,
+    fontSize: scale(28),
     fontWeight: 'bold',
     color: Colors.text,
     fontFamily: defaultFontFamily,
-    marginBottom: 32,
+    marginBottom: scale(32),
     textAlign: 'center',
     letterSpacing: -0.4,
-    lineHeight: 34,
+    lineHeight: scale(34),
   },
   buttons: {
-    gap: 8,
+    gap: scale(8),
   },
   button: {
     backgroundColor: '#363636',
@@ -136,15 +137,15 @@ const styles = StyleSheet.create({
   buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(16),
   },
   icon: {
-    marginRight: 14,
+    marginRight: scale(14),
   },
   buttonLabel: {
     flex: 1,
-    fontSize: 17,
+    fontSize: scale(17),
     color: Colors.text,
     fontFamily: defaultFontFamily,
   },

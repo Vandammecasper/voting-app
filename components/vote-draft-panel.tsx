@@ -27,6 +27,7 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { VoteDraftInput } from '@/services/voteDraftStorage';
 import { snapHaptic } from '@/utils/haptics';
+import { scale } from '@/utils/scale';
 import { PressableScale } from './pressable-scale';
 
 type VoteType = 'mvpOnly' | 'mvpAndLoser';
@@ -568,13 +569,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.text,
-    fontSize: 26,
+    fontSize: scale(26),
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
   saveStatus: {
     color: Colors.icon,
-    fontSize: 13,
+    fontSize: scale(13),
     marginTop: 6,
     fontFamily: defaultFontFamily,
   },
@@ -589,7 +590,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: '#D9D9D9',
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: '500',
     marginBottom: 8,
     marginTop: 16,
@@ -597,18 +598,18 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    minHeight: 48,
+    minHeight: scale(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1,
     paddingHorizontal: 16,
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontFamily: defaultFontFamily,
   },
   textArea: {
-    height: 100,
+    height: scale(100),
     paddingTop: 12,
     paddingBottom: 12,
   },
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     flex: 1,
     fontFamily: defaultFontFamily,
   },
@@ -694,7 +695,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontFamily: defaultFontFamily,
   },
   dropdownItemTextSelected: {
@@ -703,7 +704,7 @@ const styles = StyleSheet.create({
   },
   emptyOptionsText: {
     color: Colors.icon,
-    fontSize: 15,
+    fontSize: scale(15),
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontFamily: defaultFontFamily,

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
@@ -13,6 +13,7 @@ import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import { persistLobbyStatus } from '@/services/lobbyStatus';
+import { scale, useScale } from '@/utils/scale';
 
 interface Participant {
   name: string;
@@ -33,6 +34,7 @@ type VoteReceiptsData = Record<string, boolean>;
 export default function VotingWaitingScreen() {
   const { voteId, from } = useVoteRouteParams();
   const { user } = useAuth();
+  const { s } = useScale();
   const [isOpeningResults, setIsOpeningResults] = useState(false);
   
   // Poll lobby data
@@ -112,7 +114,12 @@ export default function VotingWaitingScreen() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <View style={styles.body} pointerEvents="box-none">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.body, { paddingTop: s(100), paddingHorizontal: s(24) }]}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
       {isCreator && voteId ? (
         <JoinRequestsHost
           voteId={voteId}
@@ -124,22 +131,22 @@ export default function VotingWaitingScreen() {
         <>
           <View style={styles.content}>
             <View style={styles.everyoneVotedContainer}>
-              <Text style={styles.everyoneVotedTitle}>Everyone</Text>
-              <Text style={styles.everyoneVotedTitle}>has voted!</Text>
+              <Text style={[styles.everyoneVotedTitle, { fontSize: s(36) }]}>Everyone</Text>
+              <Text style={[styles.everyoneVotedTitle, { fontSize: s(36) }]}>has voted!</Text>
               {!isCreator && (
-                <Text style={styles.waitingOnHost}>
+                <Text style={[styles.waitingOnHost, { fontSize: s(16), marginTop: s(24) }]}>
                   Waiting on the host to read the votes...
                 </Text>
               )}
             </View>
           </View>
           {isCreator && (
-            <View style={[styles.bottomContainer, styles.bottomContainerButtonOnly]}>
+            <View style={[styles.bottomContainer, styles.bottomContainerButtonOnly, { paddingBottom: s(60), gap: s(24) }]}>
               <PrimaryButton
                 onPress={handleGoToResults}
                 disabled={isOpeningResults}
                 style={styles.resultsButton}
-                textStyle={styles.resultsButtonText}
+                textStyle={[styles.resultsButtonText, { fontSize: s(20) }]}
               >
                 Go to results
               </PrimaryButton>
@@ -148,21 +155,21 @@ export default function VotingWaitingScreen() {
         </>
       ) : (
         <>
-          <Text style={styles.title}>Your teammates are voting...</Text>
+          <Text style={[styles.title, { fontSize: s(32) }]}>Your teammates are voting...</Text>
 
           <View style={styles.content}>
             <View style={styles.countContainer}>
-              <Text style={styles.alreadyLabel}>already</Text>
-              <GradientText text={String(votesSubmitted)} style={styles.countNumber} />
+              <Text style={[styles.alreadyLabel, { fontSize: s(18), marginBottom: s(12) }]}>already</Text>
+              <GradientText text={String(votesSubmitted)} style={[styles.countNumber, { fontSize: s(104) }]} />
               <GradientText
                 text={votesSubmitted === 1 ? 'vote submitted' : 'votes submitted'}
-                style={styles.votesSubmittedLabel}
+                style={[styles.votesSubmittedLabel, { fontSize: s(20), marginTop: s(8) }]}
               />
             </View>
           </View>
 
-          <View style={styles.bottomContainer}>
-            <Text style={styles.hint}>
+          <View style={[styles.bottomContainer, { paddingBottom: s(60), gap: s(24) }]}>
+            <Text style={[styles.hint, { fontSize: s(14) }]}>
               {`waiting for ${votesRemaining} more ${votesRemaining === 1 ? 'vote' : 'votes'}`}
             </Text>
 
@@ -171,7 +178,7 @@ export default function VotingWaitingScreen() {
                 onPress={handleGoToResults}
                 disabled={isOpeningResults}
                 style={styles.resultsButton}
-                textStyle={styles.resultsButtonText}
+                textStyle={[styles.resultsButtonText, { fontSize: s(20) }]}
               >
                 Go to results
               </PrimaryButton>
@@ -179,7 +186,7 @@ export default function VotingWaitingScreen() {
           </View>
         </>
       )}
-      </View>
+      </ScrollView>
       <ScreenBackButton variant="exit" onPress={handleExit} />
     </ThemedView>
   );
@@ -189,21 +196,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  body: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 100,
   },
-  joinRequestsWrap: {
-    marginBottom: 16,
+  body: {
+    flexGrow: 1,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: scale(160),
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#D9D9D9',
@@ -214,20 +219,15 @@ const styles = StyleSheet.create({
   },
   alreadyLabel: {
     color: Colors.icon,
-    fontSize: 18,
     fontWeight: '500',
-    marginBottom: 12,
     fontFamily: defaultFontFamily,
   },
   countNumber: {
-    fontSize: 104,
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
   votesSubmittedLabel: {
-    fontSize: 20,
     fontWeight: '600',
-    marginTop: 8,
     fontFamily: defaultFontFamily,
   },
   everyoneVotedContainer: {
@@ -235,28 +235,21 @@ const styles = StyleSheet.create({
   },
   everyoneVotedTitle: {
     color: Colors.text,
-    fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     fontFamily: defaultFontFamily,
   },
   waitingOnHost: {
     color: Colors.icon,
-    fontSize: 16,
     textAlign: 'center',
-    marginTop: 24,
     fontFamily: defaultFontFamily,
   },
-  bottomContainer: {
-    paddingBottom: 60,
-    gap: 24,
-  },
+  bottomContainer: {},
   bottomContainerButtonOnly: {
     marginTop: 24,
   },
   hint: {
     color: Colors.icon,
-    fontSize: 14,
     textAlign: 'center',
     fontFamily: defaultFontFamily,
   },
@@ -264,16 +257,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   resultsButtonText: {
-    fontSize: 20,
     fontWeight: 'bold',
     fontFamily: defaultFontFamily,
   },
-  exitButton: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 1000,
-    padding: 8,
-  },
 });
-

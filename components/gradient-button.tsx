@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { scale } from '@/utils/scale';
 import { GradientText } from './gradient-text';
 import { PressableScale } from './pressable-scale';
 
@@ -88,32 +89,32 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   button: {
-    borderRadius: 28,
-    paddingVertical: 10,
-    paddingHorizontal: 32,
+    borderRadius: scale(28),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
   borderGradient: {
-    borderRadius: 28,
+    borderRadius: scale(28),
     padding: 2,
   },
   innerContainer: {
     backgroundColor: Colors.background,
-    borderRadius: 26,
-    paddingVertical: 10,
-    paddingHorizontal: 30,
+    borderRadius: scale(26),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(30),
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryText: {
-    fontSize: 24,
+    fontSize: scale(24),
     fontWeight: '500',
     color: '#1a1a1a',
     fontFamily: defaultFontFamily,
   },
   secondaryText: {
-    fontSize: 24,
+    fontSize: scale(24),
     fontWeight: '500',
     fontFamily: defaultFontFamily,
   },

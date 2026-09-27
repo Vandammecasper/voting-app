@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
@@ -9,13 +9,17 @@ import { ThemedView } from '@/components/themed-view';
 import { UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useScale } from '@/utils/scale';
 
 export default function WelcomeScreen() {
   const [imageHeight, setImageHeight] = useState<number | null>(null);
-  const screenWidth = Dimensions.get('window').width;
+  const { s, width: screenWidth, height: screenHeight } = useScale();
+  const cardHeightValue = Math.round(Math.min(380, screenHeight * 0.42));
+  const overlayHeightValue = Math.round(Math.min(120, screenHeight * 0.14));
+  const logoSize = s(280);
   const cardTranslateY = useSharedValue(0);
-  const cardHeight = useSharedValue(380);
-  const overlayHeight = useSharedValue(120);
+  const cardHeight = useSharedValue(cardHeightValue);
+  const overlayHeight = useSharedValue(overlayHeightValue);
   const reduceMotion = useReducedMotion();
   const ONBOARDINGIMAGE = false;
 
@@ -32,15 +36,15 @@ export default function WelcomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (reduceMotion) {
-        cardHeight.value = withTiming(380, { duration: 200 });
-        overlayHeight.value = withTiming(120, { duration: 200 });
+        cardHeight.value = withTiming(cardHeightValue, { duration: 200 });
+        overlayHeight.value = withTiming(overlayHeightValue, { duration: 200 });
         cardTranslateY.value = withTiming(0, { duration: 200 });
         return;
       }
-      cardHeight.value = withSpring(380, UI_SPRING);
-      overlayHeight.value = withSpring(120, UI_SPRING);
+      cardHeight.value = withSpring(cardHeightValue, UI_SPRING);
+      overlayHeight.value = withSpring(overlayHeightValue, UI_SPRING);
       cardTranslateY.value = withSpring(0, UI_SPRING);
-    }, [cardHeight, cardTranslateY, overlayHeight, reduceMotion])
+    }, [cardHeight, cardHeightValue, cardTranslateY, overlayHeight, overlayHeightValue, reduceMotion])
   );
 
   const handleContinue = () => {
@@ -89,33 +93,61 @@ export default function WelcomeScreen() {
         >
           <Image
             source={require('@/assets/images/logo.png')}
-            style={styles.logo}
+            style={{ width: logoSize, height: logoSize }}
             resizeMode="contain"
           />
           <Animated.View style={[styles.overlay, overlayAnimatedStyle]} pointerEvents="none" />
         </View>
       )}
-      <View style={styles.content}>
-        <Animated.View style={[styles.card, cardAnimatedStyle]}>
-          <View style={styles.cardContent}>
-            <View style={styles.titleContainer}>
+      <View style={[styles.content, { minHeight: cardHeightValue + s(20) }]}>
+        <Animated.View
+          style={[
+            styles.card,
+            cardAnimatedStyle,
+            {
+              borderTopLeftRadius: s(32),
+              borderTopRightRadius: s(32),
+              paddingTop: s(32),
+              paddingHorizontal: s(32),
+              bottom: -s(64),
+            },
+          ]}
+        >
+          <View style={[styles.cardContent, { paddingBottom: s(32) }]}>
+            <View style={[styles.titleContainer, { marginBottom: s(16) }]}>
               <GradientText
                 text="Vote together"
                 colors={['#6E92FF', '#90FF91']}
-                style={styles.titlePart1}
+                style={[
+                  styles.titlePart1,
+                  {
+                    fontSize: s(36),
+                    lineHeight: s(42),
+                    marginBottom: s(4),
+                  },
+                ]}
                 secondLine="after the match"
               />
             </View>
             
-            <Text style={styles.description}>
+            <Text
+              style={[
+                styles.description,
+                {
+                  fontSize: s(18),
+                  lineHeight: s(24),
+                  marginBottom: s(24),
+                },
+              ]}
+            >
               Pick the MVP and the loser{'\n'}of your team!
             </Text>
 
-            <View style={styles.buttonContainer}>
+            <View style={[styles.buttonContainer, { marginTop: s(8) }]}>
               <PrimaryButton 
                 onPress={handleContinue}
-                style={styles.continueButton}
-                textStyle={styles.continueButtonText}
+                style={[styles.continueButton, { paddingVertical: s(14) }]}
+                textStyle={[styles.continueButtonText, { fontSize: s(20) }]}
               >
                 Continue
               </PrimaryButton>
@@ -140,10 +172,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.background,
   },
-  logo: {
-    width: 280,
-    height: 280,
-  },
   overlay: {
     position: 'absolute',
     bottom: 0,
@@ -159,61 +187,37 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    minHeight: 400,
     overflow: 'visible',
   },
   card: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingTop: 32,
-    paddingHorizontal: 32,
     width: '100%',
-    bottom: -64,
     overflow: 'visible',
     zIndex: 2,
   },
   cardContent: {
     width: '100%',
-    paddingBottom: 32,
   },
-  titleContainer: {
-    marginBottom: 16,
-  },
+  titleContainer: {},
   titlePart1: {
-    fontSize: 36,
     fontWeight: 'bold',
-    marginBottom: 4,
     textAlign: 'center',
     letterSpacing: -0.6,
-    lineHeight: 42,
-  },
-  titlePart2: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 0,
   },
   description: {
-    fontSize: 18,
     opacity: 0.6,
     color: Colors.text,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
     fontFamily: defaultFontFamily,
   },
   buttonContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: 8,
   },
   continueButton: {
     width: '100%',
-    paddingVertical: 14,
   },
   continueButtonText: {
-    fontSize: 20,
     fontWeight: 'bold',
   },
 });

@@ -2,7 +2,7 @@ import { useEventListener } from 'expo';
 import { router } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/gradient-button';
@@ -14,6 +14,7 @@ import { UI_SPRING } from '@/constants/motion';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useScale } from '@/utils/scale';
 
 const VIDEO_SOURCES = {
   createLobby: require('@/assets/images/createLobby.mov'),
@@ -25,7 +26,7 @@ type OnboardingVideo = keyof typeof VIDEO_SOURCES;
 
 export default function OnboardingStep2() {
   const { markCompleted } = useOnboarding();
-  const screenWidth = Dimensions.get('window').width;
+  const { s, width: screenWidth, height: screenHeight } = useScale();
   const [iphoneWidth, setIphoneWidth] = useState<number>(300);
   const [iphoneHeight, setIphoneHeight] = useState<number>(600);
   const [videoWidth, setVideoWidth] = useState<number>(250);
@@ -39,7 +40,7 @@ export default function OnboardingStep2() {
     nextPlayer.loop = true;
   });
   const fadeOpacity = useSharedValue(0);
-  const pageWidth = screenWidth - 64;
+  const pageWidth = screenWidth - s(64);
 
   const VIDEOS = ['createLobby', 'voting', 'votingResults'] as const;
   const dot1Width = useSharedValue(24);
@@ -52,9 +53,10 @@ export default function OnboardingStep2() {
   useEffect(() => {
     try {
       const imageSource = Image.resolveAssetSource(require('@/assets/images/iPhone17.png'));
+      // Cap phone mockup so title + buttons stay on-screen on short devices.
+      const maxWidth = Math.min(screenWidth * 0.4, screenHeight * 0.22);
       if (imageSource && imageSource.width && imageSource.height) {
         const aspectRatio = imageSource.height / imageSource.width;
-        const maxWidth = screenWidth * 0.4;
         const calculatedWidth = Math.min(maxWidth, imageSource.width);
         const calculatedHeight = calculatedWidth * aspectRatio;
         setIphoneWidth(calculatedWidth);
@@ -63,7 +65,7 @@ export default function OnboardingStep2() {
         setVideoWidth(calculatedWidth * 0.91);
         setVideoHeight(calculatedHeight * 0.97);
       } else {
-        const fallbackWidth = screenWidth * 0.4;
+        const fallbackWidth = maxWidth;
         const fallbackHeight = fallbackWidth * 2;
         setIphoneWidth(fallbackWidth);
         setIphoneHeight(fallbackHeight);
@@ -72,14 +74,14 @@ export default function OnboardingStep2() {
       }
     } catch (error) {
       console.error('Error loading iPhone image:', error);
-      const fallbackWidth = screenWidth * 0.5;
+      const fallbackWidth = Math.min(screenWidth * 0.5, screenHeight * 0.22);
       const fallbackHeight = fallbackWidth * 2;
       setIphoneWidth(fallbackWidth);
       setIphoneHeight(fallbackHeight);
       setVideoWidth(fallbackWidth * 0.91);
       setVideoHeight(fallbackHeight * 0.97);
     }
-  }, [screenWidth]);
+  }, [screenHeight, screenWidth]);
 
   useEffect(() => {
     fadeOpacity.value = reduceMotion ? withTiming(1, { duration: 200 }) : withSpring(1, UI_SPRING);
@@ -206,8 +208,21 @@ export default function OnboardingStep2() {
 
   return (
     <ThemedView safeAndroid style={styles.container}>
-      <Animated.View style={[styles.content, fadeAnimatedStyle]}>
-        <View style={styles.phoneContainer}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: s(32),
+            paddingTop: s(60),
+            paddingBottom: s(40),
+          },
+        ]}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+      <Animated.View style={[styles.contentInner, fadeAnimatedStyle]}>
+        <View style={[styles.phoneContainer, { marginBottom: s(24), minHeight: iphoneHeight }]}>
           {!videoError && (
             <View style={[styles.videoContainer, { width: videoWidth, height: videoHeight }]}>
               <VideoView
@@ -237,62 +252,63 @@ export default function OnboardingStep2() {
           pageWidth={pageWidth}
         >
           {[
-            <View key="step-1" style={styles.pagerPage}>
+            <View key="step-1" style={[styles.pagerPage, { gap: s(16), marginBottom: s(24) }]}>
               <GradientText
                 text="Create or Join"
                 colors={['#6E92FF', '#90FF91']}
-                style={styles.title}
+                style={[styles.title, { fontSize: s(36), lineHeight: s(42) }]}
                 secondLine="a lobby"
               />
-              <Text style={styles.description}>
+              <Text style={[styles.description, { fontSize: s(18), lineHeight: s(26) }]}>
                 One teammate creates a lobby{'\n'}Everyone else joins with a code
               </Text>
             </View>,
-            <View key="step-2" style={styles.pagerPage}>
+            <View key="step-2" style={[styles.pagerPage, { gap: s(16), marginBottom: s(24) }]}>
               <GradientText
                 text="Vote together"
                 colors={['#6E92FF', '#90FF91']}
-                style={styles.title}
+                style={[styles.title, { fontSize: s(36), lineHeight: s(42) }]}
                 secondLine="in real time"
               />
-              <Text style={styles.description}>
+              <Text style={[styles.description, { fontSize: s(18), lineHeight: s(26) }]}>
                 Pick the MVP and the loser together{'\n'}Live and in real time!
               </Text>
             </View>,
-            <View key="step-3" style={styles.pagerPage}>
+            <View key="step-3" style={[styles.pagerPage, { gap: s(16), marginBottom: s(24) }]}>
               <GradientText
                 text="Reveal the results"
                 colors={['#6E92FF', '#90FF91']}
-                style={styles.title}
+                style={[styles.title, { fontSize: s(36), lineHeight: s(42) }]}
                 secondLine="as one team"
               />
-              <Text style={styles.description}>
+              <Text style={[styles.description, { fontSize: s(18), lineHeight: s(26) }]}>
                 The host reveals the votes one by one then see the final ranking toghether
               </Text>
             </View>,
           ]}
         </SwipePager>
 
-        <View style={styles.paginationContainer}>
-          <Animated.View style={[styles.dot, dot1AnimatedStyle]} />
-          <Animated.View style={[styles.dot, dot2AnimatedStyle]} />
-          <Animated.View style={[styles.dot, dot3AnimatedStyle]} />
+        <View style={[styles.paginationContainer, { marginBottom: s(24), gap: s(8) }]}>
+          <Animated.View style={[styles.dot, { height: s(8), borderRadius: s(4) }, dot1AnimatedStyle]} />
+          <Animated.View style={[styles.dot, { height: s(8), borderRadius: s(4) }, dot2AnimatedStyle]} />
+          <Animated.View style={[styles.dot, { height: s(8), borderRadius: s(4) }, dot3AnimatedStyle]} />
         </View>
 
-        <View style={styles.buttonContainer}>
+        <View style={[styles.buttonContainer, { marginBottom: s(16) }]}>
           <PrimaryButton 
             onPress={handleNext}
-            style={styles.nextButton}
-            textStyle={styles.nextButtonText}
+            style={[styles.nextButton, { paddingVertical: s(16) }]}
+            textStyle={[styles.nextButtonText, { fontSize: s(20) }]}
           >
             {currentStep === 3 ? 'Start voting' : 'Next'}
           </PrimaryButton>
         </View>
 
         <PressableScale onPress={handleGoBack} style={styles.goBackContainer} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.goBackText}>Go back</Text>
+          <Text style={[styles.goBackText, { fontSize: s(16) }]}>Go back</Text>
         </PressableScale>
       </Animated.View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -302,21 +318,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 40,
+  },
+  contentInner: {
+    width: '100%',
+    alignItems: 'center',
   },
   phoneContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
     position: 'relative',
     width: '100%',
-    minHeight: 400,
     backgroundColor: 'transparent',
   },
   videoContainer: {
@@ -333,66 +351,39 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: 'transparent',
   },
-  titleContainer: {
-    marginBottom: 24,
-    alignItems: 'center',
-    width: '100%',
-    overflow: 'hidden',
-  },
   title: {
-    fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: -0.6,
-    lineHeight: 42,
   },
   pagerPage: {
     alignItems: 'center',
     paddingHorizontal: 8,
-    gap: 24,
-    marginBottom: 32,
-  },
-  descriptionContainer: {
-    marginBottom: 32,
-    alignItems: 'center',
-    width: '100%',
-    overflow: 'hidden',
   },
   description: {
-    fontSize: 18,
     color: Colors.text,
     textAlign: 'center',
-    lineHeight: 26,
     opacity: 0.7,
     fontFamily: defaultFontFamily,
   },
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 32,
   },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
+  dot: {},
   buttonContainer: {
     width: '100%',
-    marginBottom: 16,
   },
   nextButton: {
     width: '100%',
-    paddingVertical: 16,
   },
   nextButtonText: {
-    fontSize: 20,
     fontWeight: 'bold',
   },
   goBackContainer: {
     paddingVertical: 8,
   },
   goBackText: {
-    fontSize: 16,
     color: Colors.text,
     opacity: 0.7,
     fontFamily: defaultFontFamily,

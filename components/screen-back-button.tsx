@@ -3,6 +3,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { scale } from '@/utils/scale';
 import { PressableScale } from './pressable-scale';
 
 interface ScreenBackButtonProps {
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: Colors.text,
-    fontSize: 17,
+    fontSize: scale(17),
     fontFamily: defaultFontFamily,
   },
   backLabel: {

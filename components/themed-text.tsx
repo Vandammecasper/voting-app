@@ -1,6 +1,7 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Colors, defaultFontFamily } from '@/constants/theme';
+import { scale } from '@/utils/scale';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
@@ -29,29 +30,29 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: scale(16),
+    lineHeight: scale(24),
   },
   defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: scale(16),
+    lineHeight: scale(24),
     fontWeight: '600',
   },
   title: {
-    fontSize: 32,
+    fontSize: scale(32),
     fontWeight: 'bold',
-    lineHeight: 40,
+    lineHeight: scale(40),
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: scale(20),
     fontWeight: '600',
-    lineHeight: 26,
+    lineHeight: scale(26),
     letterSpacing: -0.2,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 16,
+    lineHeight: scale(30),
+    fontSize: scale(16),
     color: '#6DB3F2',
   },
 });
