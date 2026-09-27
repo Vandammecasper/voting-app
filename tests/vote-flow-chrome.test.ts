@@ -15,14 +15,18 @@ describe('vote flow chrome', () => {
     expect(waitingRoom).not.toMatch(/ID: \$\{lobbyData/);
   });
 
-  it('uses a native Alert for host join requests instead of custom admit buttons', () => {
-    const panel = read('components/join-requests-panel.tsx');
-    expect(panel).toContain('Alert.alert');
-    expect(panel).toContain("'Join request'");
-    expect(panel).toContain("text: 'Admit'");
-    expect(panel).toContain("text: 'Decline'");
-    expect(panel).not.toContain('PrimaryButton');
-    expect(panel).not.toContain('SecondaryButton');
+  it('auto-joins with the lobby code and does not wait for host approval', () => {
+    const userInput = read('app/userInput.tsx');
+    expect(userInput).toContain('joinCode: code');
+    expect(userInput).toContain("participants/${lobbyId}/${user.uid}");
+    expect(userInput).toContain("'Join'");
+    expect(userInput).not.toContain('joinRequests/');
+    expect(userInput).not.toContain('Waiting for the host');
+    expect(userInput).not.toContain('Request to join');
+
+    expect(read('app/waitingRoom.tsx')).not.toContain('JoinRequestsHost');
+    expect(read('app/voting.tsx')).not.toContain('JoinRequestsHost');
+    expect(read('app/votingWaiting.tsx')).not.toContain('JoinRequestsHost');
   });
 
   it('uses a close icon only for Exit, and leaves the waiting page to home', () => {

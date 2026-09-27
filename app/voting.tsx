@@ -14,7 +14,6 @@ import {
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
-import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
@@ -61,12 +60,6 @@ export default function VotingScreen() {
   const [voteType, setVoteType] = useState<'mvpOnly' | 'mvpAndLoser'>('mvpAndLoser');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [openDropdownCount, setOpenDropdownCount] = useState(0);
-  const [lobbyCode, setLobbyCode] = useState<string | undefined>();
-  const [isCreator, setIsCreator] = useState(false);
-  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
-    isCreator && voteId ? `joinRequests/${voteId}` : null,
-    2000
-  );
   const { data: liveLobby } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
@@ -151,9 +144,6 @@ export default function VotingScreen() {
       if (lobbyData?.voteType) {
         setVoteType(lobbyData.voteType);
       }
-
-      setLobbyCode(lobbyData?.code);
-      setIsCreator(Boolean(user && lobbyData && user.uid === lobbyData.creatorId));
 
       if (user?.uid) {
         const draft = await loadVoteDraft(voteId, user.uid);
@@ -323,14 +313,6 @@ export default function VotingScreen() {
           text="Your vote" 
           style={styles.title}
         />
-
-        {isCreator && voteId && (
-          <JoinRequestsHost
-            voteId={voteId}
-            code={lobbyCode}
-            requests={joinRequests}
-          />
-        )}
 
         {/* MVP Section */}
         <Text style={styles.sectionLabel}>Your MVP of the match</Text>

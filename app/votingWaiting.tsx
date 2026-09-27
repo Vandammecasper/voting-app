@@ -4,7 +4,6 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
-import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
@@ -55,10 +54,6 @@ export default function VotingWaitingScreen() {
 
   // Check if current user is the creator
   const isCreator = user && lobbyData && user.uid === lobbyData.creatorId;
-  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
-    isCreator && voteId ? `joinRequests/${voteId}` : null,
-    2000
-  );
 
   // Calculate vote counts
   const totalParticipants = participantsData ? Object.keys(participantsData).length : 0;
@@ -120,13 +115,6 @@ export default function VotingWaitingScreen() {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-      {isCreator && voteId ? (
-        <JoinRequestsHost
-          voteId={voteId}
-          code={lobbyData?.code}
-          requests={joinRequests}
-        />
-      ) : null}
       {everyoneHasVoted ? (
         <>
           <View style={styles.content}>

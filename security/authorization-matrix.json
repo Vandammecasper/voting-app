@@ -232,7 +232,7 @@
       "allow": true
     },
     {
-      "id": "stranger-cannot-self-join-active-lobby",
+      "id": "stranger-cannot-self-join-active-lobby-without-code",
       "fixture": "votingSession",
       "principal": "authStranger",
       "path": "participants/lobby1/stranger-uid",
@@ -241,21 +241,48 @@
       "allow": false
     },
     {
+      "id": "stranger-can-self-join-active-lobby-with-code",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "participants/lobby1/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999, "joinCode": "ABCD2345" },
+      "allow": true
+    },
+    {
       "id": "stranger-cannot-join-without-code-mapping",
       "fixture": "waitingJoin",
       "principal": "authStranger",
       "path": "participants/unmapped/stranger-uid",
       "action": "set",
-      "data": { "name": "Eve", "joinedAt": 1700000000999 },
+      "data": { "name": "Eve", "joinedAt": 1700000000999, "joinCode": "UNMAPPED" },
       "allow": false
     },
     {
-      "id": "stranger-cannot-self-join-waiting-lobby",
+      "id": "stranger-cannot-self-join-waiting-lobby-without-code",
       "fixture": "waitingJoin",
       "principal": "authStranger",
       "path": "participants/lobby2/stranger-uid",
       "action": "set",
       "data": { "name": "Eve", "joinedAt": 1700000000999 },
+      "allow": false
+    },
+    {
+      "id": "stranger-can-self-join-waiting-lobby-with-code",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "participants/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999, "joinCode": "EFGH6789" },
+      "allow": true
+    },
+    {
+      "id": "stranger-cannot-self-join-with-wrong-code",
+      "fixture": "waitingJoin",
+      "principal": "authStranger",
+      "path": "participants/lobby2/stranger-uid",
+      "action": "set",
+      "data": { "name": "Eve", "joinedAt": 1700000000999, "joinCode": "WRONGCOD" },
       "allow": false
     },
     {

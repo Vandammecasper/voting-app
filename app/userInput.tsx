@@ -9,7 +9,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
-import type { JoinRequest } from '@/components/join-requests-panel';
 import {
   generateLobbyCode,
   LOBBY_CODE_LENGTH,
@@ -20,7 +19,6 @@ import {
 import {
   formatCaughtError,
   formatRestFailure,
-  restDelete,
   restGet,
   restGetDetailed,
   restPut,
@@ -166,7 +164,6 @@ export default function UserInputScreen() {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [joinLobby, setJoinLobby] = useState<JoinableLobbyData | null>(null);
   const [alreadyMember, setAlreadyMember] = useState(false);
-  const [pendingJoin, setPendingJoin] = useState<{ lobbyId: string } | null>(null);
   const { user } = useAuth();
 
   const availableTeams = useMemo(() => usableTeams(teams), [teams]);
@@ -177,10 +174,6 @@ export default function UserInputScreen() {
     [joinTeamMembers, joinLobby?.claimedNames]
   );
   const isJoinTeamLobby = isJoinMode && isTeamLobby(joinLobby);
-  const { data: pendingRequest } = usePolledRestData<JoinRequest>(
-    pendingJoin && user?.uid ? `joinRequests/${pendingJoin.lobbyId}/${user.uid}` : null,
-    2000
-  );
   const normalizedJoinCode = lobbyCode.trim().toUpperCase();
   const { data: polledJoinMapping } = usePolledRestData<LobbyCodeMapping | string>(
     isJoinMode && normalizedJoinCode.length >= 6 ? `lobbyCodes/${normalizedJoinCode}` : null,
@@ -434,17 +427,27 @@ export default function UserInputScreen() {
         }
       }
 
-      const requestOk = await restPut(`joinRequests/${lobbyId}/${user.uid}`, {
-        name: name.trim(),
-        requestedAt: Date.now(),
-        status: 'pending',
-        code,
+      const displayName = name.trim();
+      const participantOk = await restPut(`participants/${lobbyId}/${user.uid}`, {
+        name: displayName,
+        joinedAt: Date.now(),
+        joinCode: code,
       });
-      if (!requestOk) {
-        Alert.alert("Couldn't send request", 'Please try again.');
+      if (!participantOk) {
+        Alert.alert("Couldn't join lobby", 'Please try again.');
         return;
       }
-      setPendingJoin({ lobbyId });
+
+      await restPut(claimedNameSlotPath(code, displayName), displayName);
+      await restPut(`userHistory/${user.uid}/${lobbyId}`, {
+        lobbyId,
+        joinedAt: Date.now(),
+      });
+
+      router.push({
+        pathname: '/waitingRoom',
+        params: { voteId: lobbyId },
+      });
     } catch (error) {
       console.error('❌ Error joining vote:', error);
       Alert.alert("Couldn't join lobby", 'Please try again.');
@@ -452,56 +455,6 @@ export default function UserInputScreen() {
       setIsJoining(false);
     }
   };
-
-  useEffect(() => {
-    if (!pendingJoin || !user?.uid || !pendingRequest) {
-      return;
-    }
-    if (pendingRequest.status === 'approved') {
-      const lobbyId = pendingJoin.lobbyId;
-      setPendingJoin(null);
-      restPut(`userHistory/${user.uid}/${lobbyId}`, {
-        lobbyId,
-        joinedAt: Date.now(),
-      }).finally(() => {
-        router.push({
-          pathname: '/waitingRoom',
-          params: { voteId: lobbyId },
-        });
-      });
-      return;
-    }
-    if (pendingRequest.status === 'denied') {
-      const lobbyId = pendingJoin.lobbyId;
-      setPendingJoin(null);
-      restDelete(`joinRequests/${lobbyId}/${user.uid}`);
-      Alert.alert('Request declined', 'The host declined your request to join.');
-    }
-  }, [pendingJoin, pendingRequest, user?.uid]);
-
-  const handleCancelJoinRequest = async () => {
-    if (pendingJoin && user?.uid) {
-      await restDelete(`joinRequests/${pendingJoin.lobbyId}/${user.uid}`);
-    }
-    setPendingJoin(null);
-  };
-
-  if (pendingJoin) {
-    return (
-      <ThemedView safeAndroid style={styles.container}>
-        <View style={styles.pendingWrap}>
-          <Text style={styles.title}>Waiting for the host</Text>
-          <Text style={styles.pendingSubtitle}>
-            Your request to join has been sent. You can enter once the host admits you.
-          </Text>
-          <View style={styles.buttonContainer}>
-            <PrimaryButton onPress={handleCancelJoinRequest}>Cancel request</PrimaryButton>
-          </View>
-        </View>
-        <ScreenBackButton onPress={handleCancelJoinRequest} />
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView safeAndroid style={styles.container}>
@@ -662,7 +615,7 @@ export default function UserInputScreen() {
                 : isJoinMode
                   ? alreadyMember
                     ? 'Rejoin'
-                    : 'Request to join'
+                    : 'Join'
                   : 'Create'}
             </PrimaryButton>
           </View>
@@ -748,20 +701,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6E92FF',
     marginTop: scale(200),
-  },
-  pendingWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: scale(48),
-  },
-  pendingSubtitle: {
-    color: Colors.icon,
-    fontSize: scale(16),
-    textAlign: 'center',
-    lineHeight: scale(22),
-    marginTop: scale(12),
-    fontFamily: defaultFontFamily,
   },
   buttonContainer: {
     marginTop: scale(32),

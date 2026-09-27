@@ -7,7 +7,6 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
-import { JoinRequestsHost, JoinRequestsMap } from '@/components/join-requests-panel';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenBackButton } from '@/components/screen-back-button';
 import { SelectDropdown } from '@/components/select-dropdown';
@@ -223,10 +222,6 @@ export default function WaitingRoomScreen() {
   const votingIsOpen = teamMode || lobbyData?.status === 'voting';
   const showStartVoting = Boolean(teamMode || isCreator || lobbyData?.status === 'voting');
   const showDraftVote = !teamMode;
-  const { data: joinRequests } = usePolledRestData<JoinRequestsMap>(
-    isCreator && voteId ? `joinRequests/${voteId}` : null,
-    2000
-  );
 
   useEffect(() => {
     let isMounted = true;
@@ -700,13 +695,6 @@ export default function WaitingRoomScreen() {
       </View>
 
       <View style={styles.bottomSection}>
-        {isCreator && voteId ? (
-          <JoinRequestsHost
-            voteId={voteId}
-            code={lobbyData?.code}
-            requests={joinRequests}
-          />
-        ) : null}
         <View style={styles.buttonContainer}>
           {showStartVoting && (
             <PrimaryButton 
