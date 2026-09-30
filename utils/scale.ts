@@ -5,9 +5,17 @@ import { useMemo } from 'react';
 export const BASE_WIDTH = 390;
 export const BASE_HEIGHT = 844;
 
+/** Screens shorter than this get a tighter layout (smaller hero art, less padding). */
+export const COMPACT_HEIGHT = 720;
+
 function clampFactor(width: number, height: number): number {
   // Shrink to fit short/narrow phones; never grow past the design size.
-  return Math.min(width / BASE_WIDTH, height / BASE_HEIGHT, 1);
+  let factor = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT, 1);
+  if (height < COMPACT_HEIGHT) {
+    // Extra shrink on short devices so titles/CTAs still fit.
+    factor *= Math.max(0.82, height / COMPACT_HEIGHT);
+  }
+  return Math.min(factor, 1);
 }
 
 export function getScaleFactor(
@@ -15,6 +23,10 @@ export function getScaleFactor(
   height = Dimensions.get('window').height
 ): number {
   return clampFactor(width, height);
+}
+
+export function isCompactHeight(height = Dimensions.get('window').height): boolean {
+  return height < COMPACT_HEIGHT;
 }
 
 /** Uniform scale (width + height constrained). Use for fonts, gaps, radii. */
@@ -45,9 +57,10 @@ export function useScale() {
   const { width, height } = useWindowDimensions();
   return useMemo(() => {
     const factor = clampFactor(width, height);
+    const compact = height < COMPACT_HEIGHT;
     const s = (size: number) => PixelRatio.roundToNearestPixel(size * factor);
     const ms = (size: number, f = 0.5) =>
       PixelRatio.roundToNearestPixel(size + (size * factor - size) * f);
-    return { s, ms, factor, width, height };
+    return { s, ms, factor, compact, width, height };
   }, [width, height]);
 }

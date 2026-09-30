@@ -12,7 +12,9 @@ import { useScale } from '@/utils/scale';
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const tabBarInset = useTabSceneBottomInset();
-  const { s } = useScale();
+  const { s, compact } = useScale();
+  const titleSize = s(compact ? 72 : 100);
+  const subtitleSize = s(compact ? 16 : 20);
 
   return (
     <ThemedView
@@ -20,8 +22,8 @@ export default function HomeScreen() {
         styles.container,
         {
           paddingTop: insets.top,
-          paddingBottom: s(16) + tabBarInset,
-          paddingHorizontal: s(48),
+          paddingBottom: s(compact ? 8 : 16) + tabBarInset,
+          paddingHorizontal: s(compact ? 28 : 48),
         },
       ]}
     >
@@ -31,25 +33,45 @@ export default function HomeScreen() {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { minHeight: compact ? 48 : 80 }]}>
           <GradientText
             text="MVP"
             style={[
               styles.display,
               {
-                fontSize: s(100),
-                lineHeight: s(108),
-                letterSpacing: s(-2),
+                fontSize: titleSize,
+                lineHeight: titleSize * 1.05,
+                letterSpacing: s(compact ? -1.5 : -2),
               },
             ]}
           />
         </View>
-        <Text style={[styles.subtitle, { fontSize: s(20), lineHeight: s(26) }]}>
+        <Text
+          style={[
+            styles.subtitle,
+            {
+              fontSize: subtitleSize,
+              lineHeight: subtitleSize * 1.3,
+            },
+          ]}
+        >
           Who is the most valuable player on your team?
         </Text>
-        <View style={[styles.buttonContainer, { marginTop: s(32), gap: s(16) }]}>
-          <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>Create vote</PrimaryButton>
-          <SecondaryButton onPress={() => {router.push('/userInput?mode=join')}}>Join vote</SecondaryButton>
+        <View
+          style={[
+            styles.buttonContainer,
+            {
+              marginTop: s(compact ? 20 : 32),
+              gap: s(compact ? 12 : 16),
+            },
+          ]}
+        >
+          <PrimaryButton onPress={() => {router.push('/userInput?mode=create')}}>
+            Create vote
+          </PrimaryButton>
+          <SecondaryButton onPress={() => {router.push('/userInput?mode=join')}}>
+            Join vote
+          </SecondaryButton>
         </View>
       </ScrollView>
     </ThemedView>
@@ -73,7 +95,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 80,
   },
   display: {
     fontWeight: 'bold',

@@ -1,9 +1,10 @@
-import { getScaleFactor, moderateScale, scale } from '@/utils/scale';
+import { getScaleFactor, isCompactHeight, moderateScale, scale } from '@/utils/scale';
 
 describe('scale utilities', () => {
   it('keeps design size on the reference screen', () => {
     expect(getScaleFactor(390, 844)).toBe(1);
     expect(scale(24, 390, 844)).toBe(24);
+    expect(isCompactHeight(844)).toBe(false);
   });
 
   it('shrinks on short phones without growing past design', () => {
@@ -11,6 +12,7 @@ describe('scale utilities', () => {
     expect(factor).toBeLessThan(1);
     expect(scale(100, 320, 568)).toBeLessThan(100);
     expect(getScaleFactor(430, 932)).toBe(1);
+    expect(isCompactHeight(640)).toBe(true);
   });
 
   it('applies a softer moderate scale', () => {
