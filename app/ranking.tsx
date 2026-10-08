@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/gradient-button';
+import { PrimaryButton, SecondaryButton } from '@/components/gradient-button';
 import { GradientText } from '@/components/gradient-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
@@ -67,7 +67,7 @@ function RankingItem({ entry, position, type }: {
 }
 
 export default function RankingScreen() {
-  const { voteId } = useVoteRouteParams();
+  const { voteId, from } = useVoteRouteParams();
   const { data: lobbyData, isLoading } = usePolledRestData<LobbyData>(
     voteId ? `lobbies/${voteId}` : null,
     2000
@@ -78,6 +78,14 @@ export default function RankingScreen() {
   );
 
   const rankings = rankingsFromLobbyOrVotes(lobbyData, votesData);
+
+  const handleReviewVotes = () => {
+    if (!voteId) return;
+    router.push({
+      pathname: '/reviewVotes',
+      params: { voteId, ...(from ? { from } : {}) },
+    });
+  };
 
   const handleFinish = () => {
     router.replace('/(tabs)');
@@ -161,7 +169,14 @@ export default function RankingScreen() {
           )}
         </View>
 
-        {/* Finish Button */}
+        <SecondaryButton
+          onPress={handleReviewVotes}
+          style={styles.reviewButton}
+          textStyle={styles.finishButtonText}
+        >
+          Review votes
+        </SecondaryButton>
+
         <PrimaryButton
           onPress={handleFinish}
           style={styles.finishButton}
@@ -298,8 +313,11 @@ const styles = StyleSheet.create({
     paddingVertical: scale(16),
     fontFamily: defaultFontFamily,
   },
-  finishButton: {
+  reviewButton: {
     marginTop: scale(32),
+  },
+  finishButton: {
+    marginTop: scale(12),
   },
   finishButtonText: {
     fontSize: scale(20),

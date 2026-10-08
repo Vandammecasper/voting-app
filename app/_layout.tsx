@@ -100,6 +100,7 @@ function RootLayoutNav() {
           <Stack.Screen name="votingWaiting" options={flowStackScreen} />
           <Stack.Screen name="results" options={flowStackScreen} />
           <Stack.Screen name="ranking" options={flowStackScreen} />
+          <Stack.Screen name="reviewVotes" options={flowStackScreen} />
         </Stack.Protected>
       </Stack>
       {Platform.OS !== 'android' ? <StatusBar {...statusBarProps} /> : null}
