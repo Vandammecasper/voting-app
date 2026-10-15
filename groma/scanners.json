@@ -1,0 +1,88 @@
+{
+  "scanners": [
+    {
+      "id": "javascript",
+      "source": "@groma/scanner-javascript@0.2.1",
+      "include": [
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.cjs",
+        "**/*.jsx",
+        "**/package.json",
+        "**/*.html",
+        "**/project.json",
+        "**/nx.json"
+      ],
+      "exclude": [
+        "*.min.js",
+        "*.min.mjs",
+        "*.min.cjs",
+        "*.min.jsx",
+        "node_modules/",
+        "dist/",
+        "build/",
+        "coverage/",
+        "/scripts/",
+        "/tests/",
+        "eslint.config.js",
+        "jest.config.js",
+        "jest.rules.config.js"
+      ]
+    },
+    {
+      "id": "react",
+      "source": "@groma/scanner-react@0.2.1",
+      "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/tsconfig*.json",
+        "**/package.json",
+        "**/*.html",
+        "**/project.json",
+        "**/nx.json"
+      ],
+      "exclude": [
+        "*.test.ts",
+        "*.test.tsx",
+        "*.spec.ts",
+        "*.spec.tsx",
+        "/test/",
+        "/tests/",
+        "/scripts/",
+        "node_modules/",
+        "dist/",
+        "build/",
+        "coverage/",
+        "app/modal.tsx"
+      ]
+    },
+    {
+      "id": "typescript",
+      "source": "@groma/scanner-typescript@0.2.2",
+      "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/tsconfig*.json",
+        "**/package.json",
+        "**/*.html",
+        "**/angular.json",
+        "**/project.json",
+        "**/nx.json"
+      ],
+      "exclude": [
+        "*.test.ts",
+        "*.test.tsx",
+        "*.spec.ts",
+        "*.spec.tsx",
+        "/test/",
+        "/tests/",
+        "/scripts/",
+        "node_modules/",
+        "dist/",
+        "build/",
+        "coverage/",
+        "app/modal.tsx"
+      ]
+    }
+  ]
+}

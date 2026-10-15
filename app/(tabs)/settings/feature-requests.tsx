@@ -21,6 +21,11 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePullToRefreshGuard } from '@/hooks/usePullToRefreshGuard';
 import { useTabSceneBottomInset } from '@/hooks/useTabSceneBottomInset';
+import {
+  displayBoardStatus,
+  FEATURE_REQUEST_STATUS,
+  statusBadgeColors,
+} from '@/services/feature-request-status';
 import { restDelete, restGet, restPatch, restPush, restPut } from '@/services/firebaseRest';
 
 export interface FeatureRequestItem {
@@ -29,6 +34,9 @@ export interface FeatureRequestItem {
   createdAt?: number;
   userId?: string;
   userName?: string;
+  boardStatus?: string;
+  backlogId?: string;
+  backlogPhase?: 'draft' | 'task';
   /** userId -> true for each like (from Firebase) */
   likes?: Record<string, true>;
 }
@@ -71,6 +79,8 @@ function FeatureRequestCard({ id, item, currentUserId, onLikeToggle, onEdit, onD
   const hasLiked = currentUserId ? !!likes[currentUserId] : false;
   const canLike = currentUserId && item.userId !== currentUserId;
   const isCreator = currentUserId && item.userId === currentUserId;
+  const boardStatus = displayBoardStatus(item.boardStatus);
+  const badge = statusBadgeColors(boardStatus);
   const [liking, setLiking] = React.useState(false);
 
   const handleLikePress = React.useCallback(() => {
@@ -88,6 +98,15 @@ function FeatureRequestCard({ id, item, currentUserId, onLikeToggle, onEdit, onD
         {createdAt > 0 && (
           <Text style={styles.cardDate}>{formatDate(createdAt)}</Text>
         )}
+      </View>
+      <View
+        style={[
+          styles.statusBadge,
+          { backgroundColor: badge.background, borderColor: badge.border },
+        ]}
+        accessibilityLabel={`Status ${boardStatus}`}
+      >
+        <Text style={[styles.statusBadgeText, { color: badge.text }]}>{boardStatus}</Text>
       </View>
       {description ? (
         <Text style={styles.cardDescription} numberOfLines={4}>
@@ -302,6 +321,7 @@ function FeatureRequestsScreenInner() {
           title,
           createdAt: Date.now(),
           userId: user.uid,
+          boardStatus: FEATURE_REQUEST_STATUS.pending,
         };
         if (description) {
           payload.description = description;
@@ -663,6 +683,19 @@ const styles = StyleSheet.create({
   cardDate: {
     color: Colors.icon,
     fontSize: 13,
+    fontFamily: defaultFontFamily,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
     fontFamily: defaultFontFamily,
   },
   cardDescription: {

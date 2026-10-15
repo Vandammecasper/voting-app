@@ -523,9 +523,39 @@
       "data": {
         "title": "Mine",
         "createdAt": 1700000000999,
-        "userId": "stranger-uid"
+        "userId": "stranger-uid",
+        "boardStatus": "Request pending"
       },
       "allow": true
+    },
+    {
+      "id": "feature-request-create-with-backlogId-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "featureRequests/spoof-backlog",
+      "action": "set",
+      "data": {
+        "title": "Mine",
+        "createdAt": 1700000000999,
+        "userId": "stranger-uid",
+        "boardStatus": "Request pending",
+        "backlogId": "DRAFT-1"
+      },
+      "allow": false
+    },
+    {
+      "id": "feature-request-create-with-accepted-status-denied",
+      "fixture": "votingSession",
+      "principal": "authStranger",
+      "path": "featureRequests/spoof-status",
+      "action": "set",
+      "data": {
+        "title": "Mine",
+        "createdAt": 1700000000999,
+        "userId": "stranger-uid",
+        "boardStatus": "Request Accepted"
+      },
+      "allow": false
     },
     {
       "id": "stranger-cannot-like-own-request",
