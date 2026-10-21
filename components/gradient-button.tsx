@@ -43,9 +43,17 @@ export function PrimaryButton({
         colors={GRADIENT_COLORS}
         start={{ x: 0.42, y: 0.1 }}
         end={{ x: 0.5, y: 1.75 }}
-        style={[styles.button, style]}
+        // Keep layout props (e.g. flex:1) on PressableScale only so the label is not clipped.
+        style={[styles.button, styles.fill]}
       >
-        <Text style={[styles.primaryText, textStyle]}>{children}</Text>
+        <Text
+          style={[styles.primaryText, textStyle]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {children}
+        </Text>
       </LinearGradient>
     </PressableScale>
   );
@@ -71,7 +79,7 @@ export function SecondaryButton({
           colors={GRADIENT_COLORS}
           start={{ x: 0.42, y: 0.1 }}
           end={{ x: 0.5, y: 1.75 }}
-          style={[styles.borderGradient, style]}
+          style={[styles.borderGradient, styles.fill]}
         >
           <View style={styles.innerContainer}>
             <GradientText 
@@ -91,9 +99,10 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: scale(28),
     paddingVertical: scale(10),
-    paddingHorizontal: scale(32),
+    paddingHorizontal: scale(16),
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: scale(48),
   },
   borderGradient: {
     borderRadius: scale(28),

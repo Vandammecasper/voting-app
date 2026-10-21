@@ -25,6 +25,7 @@ import {
     MIN_TEAM_MEMBERS,
     updateTeam,
 } from '@/services/teams';
+import { scale, touchTarget } from '@/utils/scale';
 
 export default function TeamEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -274,14 +275,14 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    height: 48,
+    height: touchTarget(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: scale(16),
     color: Colors.text,
-    fontSize: 16,
+    fontSize: scale(16),
     fontFamily: defaultFontFamily,
     marginBottom: 20,
   },

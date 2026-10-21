@@ -27,6 +27,7 @@ import {
   statusBadgeColors,
 } from '@/services/feature-request-status';
 import { restDelete, restGet, restPatch, restPush, restPut } from '@/services/firebaseRest';
+import { scale, touchTarget } from '@/utils/scale';
 
 export interface FeatureRequestItem {
   title?: string;
@@ -508,6 +509,7 @@ function FeatureRequestsScreenInner() {
                 <PrimaryButton
                   onPress={handleSaveRequest}
                   style={styles.modalSaveButton}
+                  textStyle={styles.modalSaveButtonText}
                   disabled={isSaving || !titleInput.trim()}
                 >
                   {isSaving ? 'Saving…' : 'Save'}
@@ -619,16 +621,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.icon,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    paddingHorizontal: scale(16),
+    minHeight: touchTarget(48),
+    paddingVertical: scale(12),
+    fontSize: scale(16),
     color: Colors.text,
     marginBottom: 16,
     fontFamily: defaultFontFamily,
   },
   modalInputMultiline: {
-    minHeight: 80,
-    paddingTop: 14,
+    minHeight: Math.max(touchTarget(48), scale(80)),
+    paddingTop: scale(12),
   },
   modalButtons: {
     flexDirection: 'row',
@@ -650,6 +653,10 @@ const styles = StyleSheet.create({
   },
   modalSaveButton: {
     flex: 1,
+    minWidth: 0,
+  },
+  modalSaveButtonText: {
+    fontSize: 18,
   },
   modalError: {
     color: '#ff6b6b',

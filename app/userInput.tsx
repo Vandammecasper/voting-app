@@ -37,7 +37,7 @@ import {
   usableTeams,
   UserTeamWithId,
 } from '@/services/teams';
-import { scale } from '@/utils/scale';
+import { scale, touchTarget } from '@/utils/scale';
 import { router, useLocalSearchParams } from 'expo-router';
 
 interface JoinableLobbyData {
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    height: scale(40),
+    height: touchTarget(48),
     borderColor: Colors.icon,
     borderWidth: 1,
     marginBottom: scale(12),

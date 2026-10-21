@@ -27,7 +27,7 @@ import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { VoteDraftInput } from '@/services/voteDraftStorage';
 import { snapHaptic } from '@/utils/haptics';
-import { scale } from '@/utils/scale';
+import { scale, touchTarget } from '@/utils/scale';
 import { PressableScale } from './pressable-scale';
 
 type VoteType = 'mvpOnly' | 'mvpAndLoser';
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    minHeight: scale(48),
+    minHeight: touchTarget(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
   },
   textArea: {
-    height: scale(100),
+    height: Math.max(touchTarget(48), scale(100)),
     paddingTop: 12,
     paddingBottom: 12,
   },
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     width: '100%',
-    height: 48,
+    height: touchTarget(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,

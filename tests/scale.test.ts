@@ -1,4 +1,11 @@
-import { getScaleFactor, isCompactHeight, moderateScale, scale } from '@/utils/scale';
+import {
+  getScaleFactor,
+  isCompactHeight,
+  MIN_TOUCH_TARGET,
+  moderateScale,
+  scale,
+  touchTarget,
+} from '@/utils/scale';
 
 describe('scale utilities', () => {
   it('keeps design size on the reference screen', () => {
@@ -20,5 +27,11 @@ describe('scale utilities', () => {
     const soft = moderateScale(40, 0.5, 320, 568);
     expect(soft).toBeGreaterThan(full);
     expect(soft).toBeLessThan(40);
+  });
+
+  it('floors touch targets at 44dp on small phones', () => {
+    expect(scale(40, 320, 568)).toBeLessThan(MIN_TOUCH_TARGET);
+    expect(touchTarget(40, MIN_TOUCH_TARGET, 320, 568)).toBe(MIN_TOUCH_TARGET);
+    expect(touchTarget(48, MIN_TOUCH_TARGET, 390, 844)).toBe(48);
   });
 });

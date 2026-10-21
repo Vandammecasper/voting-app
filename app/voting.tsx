@@ -26,7 +26,7 @@ import { restGet, restUpdatePaths } from '@/services/firebaseRest';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import { mvpVoteOptions } from '@/services/voteOptions';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
-import { scale } from '@/utils/scale';
+import { scale, touchTarget } from '@/utils/scale';
 
 interface Participant {
   name: string;
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    height: scale(48),
+    height: touchTarget(48),
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
   },
   textArea: {
-    height: scale(100),
+    height: Math.max(touchTarget(48), scale(100)),
     paddingTop: scale(12),
     paddingBottom: scale(12),
   },

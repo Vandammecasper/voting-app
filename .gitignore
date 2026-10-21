@@ -55,7 +55,11 @@ app-example
 # AI files
 .idea/
 .vscode/
-.cursor/
+# Keep project agent skills versioned; ignore the rest of .cursor (e.g. mcp.json)
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
+.cursor/skills/tessl__*/
 .cursorrules/
 .cursorrules.md/
 .cursorrules.txt/

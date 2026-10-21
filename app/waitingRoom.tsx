@@ -34,7 +34,7 @@ import {
   saveVoteDraft,
   VoteDraftInput,
 } from '@/services/voteDraftStorage';
-import { scale, useScale } from '@/utils/scale';
+import { scale, touchTarget, useScale } from '@/utils/scale';
 
 const shownNameChangePromptKeys = new Set<string>();
 
@@ -955,7 +955,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.icon,
     borderWidth: 1,
     paddingHorizontal: scale(16),
-    paddingVertical: scale(14),
+    minHeight: touchTarget(48),
+    paddingVertical: scale(12),
     fontSize: scale(16),
     color: Colors.text,
     marginBottom: scale(20),

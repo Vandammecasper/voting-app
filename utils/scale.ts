@@ -38,6 +38,22 @@ export function scale(
   return PixelRatio.roundToNearestPixel(size * clampFactor(width, height));
 }
 
+/** Default minimum tappable control height (dp). */
+export const MIN_TOUCH_TARGET = 44;
+
+/**
+ * Scaled control size that never shrinks below a comfortable tap target.
+ * Use for TextInput / button heights on small phones.
+ */
+export function touchTarget(
+  size = 48,
+  min = MIN_TOUCH_TARGET,
+  width = Dimensions.get('window').width,
+  height = Dimensions.get('window').height
+): number {
+  return Math.max(min, scale(size, width, height));
+}
+
 /**
  * Soften scale toward the design size.
  * factor 0 = no scaling, 1 = full scale(). Default 0.5.
