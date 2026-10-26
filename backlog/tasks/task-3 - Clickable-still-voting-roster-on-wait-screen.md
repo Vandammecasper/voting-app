@@ -1,11 +1,11 @@
 ---
 id: TASK-3
 title: Clickable still-voting roster on wait screen
-status: Ready for deployment
+status: Done
 assignee:
   - '@casper'
 created_date: '2026-10-26T10:44:00Z'
-updated_date: '2026-10-26T10:46:00Z'
+updated_date: '2026-10-26T11:08:00Z'
 labels: []
 dependencies: []
 references:
@@ -50,6 +50,8 @@ Participants and boolean vote receipts are already polled on the waiting screen;
 
 <!-- SECTION:NOTES:BEGIN -->
 Verification: formatStillVotingMention + partitionVotingRoster unit tests pass (1/2/3+ copy). vote-flow-chrome asserts tappable roster wiring (formatStillVotingMention, handleToggleRoster, Show who voted, collapse clears votedOpen) and that the old numeric hint is gone. Host results persistLobbyStatus path and Exit replace to /(tabs) unchanged. Interactive device tap not exercised in this cloud environment.
+
+Merged PR #1 to main. iOS 1.7.1 (24) built and submitted to App Store Connect (submission c6aa6cf5-869a-477a-aca8-d9b683ab4acc). Also committed eas.json ascAppId and version bump 1.7.1 on main.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
