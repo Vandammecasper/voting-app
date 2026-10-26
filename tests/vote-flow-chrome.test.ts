@@ -41,6 +41,17 @@ describe('vote flow chrome', () => {
     expect(waiting).toContain('totalParticipants > 0 && votesRemaining === 0');
   });
 
+  it('shows a tappable still-voting roster while waiting for votes', () => {
+    const waiting = read('app/votingWaiting.tsx');
+    expect(waiting).toContain('formatStillVotingMention');
+    expect(waiting).toContain('partitionVotingRoster');
+    expect(waiting).toContain('handleToggleRoster');
+    expect(waiting).toContain('stillVotingMention');
+    expect(waiting).toContain('Show who voted');
+    expect(waiting).toContain('setVotedOpen(false)');
+    expect(waiting).not.toContain('waiting for ${votesRemaining} more');
+  });
+
   it('omits the voter from MVP choices', () => {
     expect(read('app/voting.tsx')).toContain('mvpVoteOptions');
     expect(read('app/voting.tsx')).toContain('options={mvpOptions}');
