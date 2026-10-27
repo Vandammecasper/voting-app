@@ -5,7 +5,7 @@ status: Ready for deployment
 assignee:
   - '@casper'
 created_date: '2026-10-27T09:03:00Z'
-updated_date: '2026-10-27T09:04:00Z'
+updated_date: '2026-10-27T09:08:00Z'
 labels: []
 dependencies: []
 references:
@@ -45,6 +45,8 @@ The still-voting overlay panel stretches full width. It should start only as wid
 
 <!-- SECTION:NOTES:BEGIN -->
 Panel shrink-wraps for 1-column names; onLayout overflow → 2-column wrap (maxWidth 260); further overflow enables nested ScrollView. Logic in nextRosterLayoutMode with unit tests.
+
+Small-screen pass: getRosterPanelLimits caps overlay to ≤40% viewport height and available width (minus insets) down to ~320×568; long names ellipsize; status/show-who-voted controls use touchTarget min height.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
