@@ -39,9 +39,8 @@ interface LobbyData {
 type ParticipantsData = Record<string, Participant>;
 type VoteReceiptsData = Record<string, boolean>;
 
-const AnimatedIonicons = Animated.createAnimatedComponent(Ionicons);
-
-function RosterChevron({ isOpen }: { isOpen: boolean }) {
+/** Chevron that rotates about its own center inside a fixed square. */
+function RosterChevron({ isOpen, size = 18 }: { isOpen: boolean; size?: number }) {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -53,12 +52,15 @@ function RosterChevron({ isOpen }: { isOpen: boolean }) {
   }));
 
   return (
-    <AnimatedIonicons
-      name="chevron-down"
-      size={16}
-      color={Colors.icon}
-      style={animatedStyle}
-    />
+    <Animated.View
+      style={[
+        styles.chevronBox,
+        { width: size, height: size },
+        animatedStyle,
+      ]}
+    >
+      <Ionicons name="chevron-down" size={size} color={Colors.icon} />
+    </Animated.View>
   );
 }
 
@@ -226,20 +228,27 @@ export default function VotingWaitingScreen() {
 
           <View style={[styles.bottomContainer, { paddingBottom: s(60), gap: s(24) }]}>
             {stillVotingMention ? (
-              <View style={styles.rosterSection}>
+              <View style={styles.dropdownContainer}>
                 <PressableScale
                   onPress={handleToggleRoster}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: rosterOpen }}
                   accessibilityLabel={stillVotingMention}
-                  style={styles.hintPressable}
+                  style={[styles.dropdownTrigger, rosterOpen && styles.dropdownTriggerOpen]}
+                  innerStyle={styles.dropdownTriggerInner}
                 >
-                  <Text style={[styles.hint, { fontSize: s(14) }]}>{stillVotingMention}</Text>
+                  <Text
+                    style={[styles.dropdownTriggerText, { fontSize: s(14) }]}
+                    numberOfLines={2}
+                  >
+                    {stillVotingMention}
+                  </Text>
+                  <RosterChevron isOpen={rosterOpen} size={s(18)} />
                 </PressableScale>
 
                 {rosterOpen ? (
-                  <View style={styles.rosterPanel}>
-                    <Text style={[styles.rosterHeading, { fontSize: s(13) }]}>Still voting</Text>
+                  <View style={styles.dropdownMenu}>
+                    <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Still voting</Text>
                     <RosterNameList members={stillVoting} fontSize={s(16)} />
 
                     {alreadyVoted.length > 0 ? (
@@ -249,17 +258,18 @@ export default function VotingWaitingScreen() {
                           accessibilityRole="button"
                           accessibilityState={{ expanded: votedOpen }}
                           accessibilityLabel={votedOpen ? 'Hide who voted' : 'Show who voted'}
-                          style={styles.extendRow}
+                          style={styles.extendControl}
+                          innerStyle={styles.extendControlInner}
                         >
                           <Text style={[styles.extendLabel, { fontSize: s(13) }]}>
                             {votedOpen ? 'Hide who voted' : 'Show who voted'}
                           </Text>
-                          <RosterChevron isOpen={votedOpen} />
+                          <RosterChevron isOpen={votedOpen} size={s(16)} />
                         </PressableScale>
 
                         {votedOpen ? (
                           <View style={styles.votedSection}>
-                            <Text style={[styles.rosterHeading, { fontSize: s(13) }]}>Already voted</Text>
+                            <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Already voted</Text>
                             <RosterNameList members={alreadyVoted} fontSize={s(16)} />
                           </View>
                         ) : null}
@@ -345,23 +355,55 @@ const styles = StyleSheet.create({
   bottomContainerButtonOnly: {
     marginTop: 24,
   },
-  rosterSection: {
+  dropdownContainer: {
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  dropdownTrigger: {
+    width: '100%',
+    minHeight: 48,
+    backgroundColor: '#3a3a3a',
+    borderRadius: 8,
+    borderColor: Colors.icon,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownTriggerOpen: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+  },
+  dropdownTriggerInner: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
-  hintPressable: {
-    alignSelf: 'center',
-  },
-  hint: {
-    color: Colors.icon,
-    textAlign: 'center',
+  dropdownTriggerText: {
+    flex: 1,
+    color: Colors.text,
     fontFamily: defaultFontFamily,
-    textDecorationLine: 'underline',
   },
-  rosterPanel: {
+  dropdownMenu: {
     width: '100%',
-    alignItems: 'center',
+    backgroundColor: '#3a3a3a',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    borderColor: Colors.icon,
+    borderWidth: 1.5,
+    borderTopWidth: 1,
+    borderTopColor: '#5a5a5a',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
     gap: 8,
+    alignItems: 'center',
+  },
+  chevronBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rosterHeading: {
     color: Colors.placeholder,
@@ -370,6 +412,7 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    alignSelf: 'stretch',
   },
   rosterNames: {
     width: '100%',
@@ -383,16 +426,20 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
     paddingVertical: 4,
   },
-  extendRow: {
-    flexDirection: 'row',
+  extendControl: {
+    alignSelf: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  extendControlInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 4,
-    paddingVertical: 4,
+    gap: 4,
   },
   extendLabel: {
     color: Colors.icon,
+    textAlign: 'center',
     fontFamily: defaultFontFamily,
   },
   votedSection: {
@@ -400,6 +447,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#5a5a5a',
   },
   resultsButton: {
     marginHorizontal: 0,
