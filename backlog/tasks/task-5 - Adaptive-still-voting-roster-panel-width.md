@@ -1,11 +1,11 @@
 ---
 id: TASK-5
 title: Adaptive still-voting roster panel width
-status: Ready for deployment
+status: Done
 assignee:
   - '@casper'
 created_date: '2026-10-27T09:03:00Z'
-updated_date: '2026-10-27T09:08:00Z'
+updated_date: '2026-10-27T09:20:00Z'
 labels: []
 dependencies: []
 references:
@@ -47,6 +47,8 @@ The still-voting overlay panel stretches full width. It should start only as wid
 Panel shrink-wraps for 1-column names; onLayout overflow → 2-column wrap (maxWidth 260); further overflow enables nested ScrollView. Logic in nextRosterLayoutMode with unit tests.
 
 Small-screen pass: getRosterPanelLimits caps overlay to ≤40% viewport height and available width (minus insets) down to ~320×568; long names ellipsize; status/show-who-voted controls use touchTarget min height.
+
+Merged PR #3. iOS 1.7.1 (26) built and submitted (submission 5694f846-6af7-43ad-ae03-4f37647294d5).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
