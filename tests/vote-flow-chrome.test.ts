@@ -50,6 +50,9 @@ describe('vote flow chrome', () => {
     expect(waiting).toContain('Show who voted');
     expect(waiting).toContain('setVotedOpen(false)');
     expect(waiting).toContain('styles.dropdownMenu');
+    expect(waiting).toContain('styles.dropdownMenuScroll');
+    expect(waiting).toContain('maxHeight: s(220)');
+    expect(waiting).toContain('nestedScrollEnabled');
     expect(waiting).toContain("position: 'absolute'");
     expect(waiting).toContain("bottom: '100%'");
     expect(waiting).toContain('styles.hint');

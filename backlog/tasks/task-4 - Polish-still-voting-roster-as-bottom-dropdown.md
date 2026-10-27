@@ -5,7 +5,7 @@ status: Ready for deployment
 assignee:
   - '@casper'
 created_date: '2026-10-27T08:01:00Z'
-updated_date: '2026-10-27T08:37:00Z'
+updated_date: '2026-10-27T08:40:00Z'
 labels: []
 dependencies: []
 references:
@@ -47,6 +47,8 @@ Restyled as bordered bottom dropdown (trigger + menu panel matching select-dropd
 Closed still-voting mention is plain underlined text again (no bordered trigger). Only the opened roster panel keeps the clear dropdown outline.
 
 Opened roster panel is absolutely positioned above the mention (bottom: 100%) so opening it does not reflow title, vote count, or host CTA.
+
+Opened roster panel capped at maxHeight s(220) with nested ScrollView so long name lists scroll inside the overlay.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

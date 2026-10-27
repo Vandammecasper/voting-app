@@ -242,34 +242,43 @@ export default function VotingWaitingScreen() {
                 </PressableScale>
 
                 {rosterOpen ? (
-                  <View style={styles.dropdownMenu}>
-                    <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Still voting</Text>
-                    <RosterNameList members={stillVoting} fontSize={s(16)} />
+                  <View style={[styles.dropdownMenu, { maxHeight: s(220) }]}>
+                    <ScrollView
+                      style={styles.dropdownMenuScroll}
+                      contentContainerStyle={styles.dropdownMenuContent}
+                      nestedScrollEnabled
+                      bounces={false}
+                      showsVerticalScrollIndicator
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Still voting</Text>
+                      <RosterNameList members={stillVoting} fontSize={s(16)} />
 
-                    {alreadyVoted.length > 0 ? (
-                      <>
-                        <PressableScale
-                          onPress={() => setVotedOpen((open) => !open)}
-                          accessibilityRole="button"
-                          accessibilityState={{ expanded: votedOpen }}
-                          accessibilityLabel={votedOpen ? 'Hide who voted' : 'Show who voted'}
-                          style={styles.extendControl}
-                          innerStyle={styles.extendControlInner}
-                        >
-                          <Text style={[styles.extendLabel, { fontSize: s(13) }]}>
-                            {votedOpen ? 'Hide who voted' : 'Show who voted'}
-                          </Text>
-                          <RosterChevron isOpen={votedOpen} size={s(16)} />
-                        </PressableScale>
+                      {alreadyVoted.length > 0 ? (
+                        <>
+                          <PressableScale
+                            onPress={() => setVotedOpen((open) => !open)}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: votedOpen }}
+                            accessibilityLabel={votedOpen ? 'Hide who voted' : 'Show who voted'}
+                            style={styles.extendControl}
+                            innerStyle={styles.extendControlInner}
+                          >
+                            <Text style={[styles.extendLabel, { fontSize: s(13) }]}>
+                              {votedOpen ? 'Hide who voted' : 'Show who voted'}
+                            </Text>
+                            <RosterChevron isOpen={votedOpen} size={s(16)} />
+                          </PressableScale>
 
-                        {votedOpen ? (
-                          <View style={styles.votedSection}>
-                            <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Already voted</Text>
-                            <RosterNameList members={alreadyVoted} fontSize={s(16)} />
-                          </View>
-                        ) : null}
-                      </>
-                    ) : null}
+                          {votedOpen ? (
+                            <View style={styles.votedSection}>
+                              <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Already voted</Text>
+                              <RosterNameList members={alreadyVoted} fontSize={s(16)} />
+                            </View>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </ScrollView>
                   </View>
                 ) : null}
               </View>
@@ -379,17 +388,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1.5,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    gap: 8,
-    alignItems: 'center',
+    overflow: 'hidden',
     zIndex: 30,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
+  },
+  dropdownMenuScroll: {
+    flexGrow: 0,
+  },
+  dropdownMenuContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 8,
+    alignItems: 'center',
   },
   chevronBox: {
     alignItems: 'center',
