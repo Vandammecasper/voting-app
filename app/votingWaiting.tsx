@@ -228,22 +228,17 @@ export default function VotingWaitingScreen() {
 
           <View style={[styles.bottomContainer, { paddingBottom: s(60), gap: s(24) }]}>
             {stillVotingMention ? (
-              <View style={styles.dropdownContainer}>
+              <View style={styles.rosterSection}>
                 <PressableScale
                   onPress={handleToggleRoster}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: rosterOpen }}
                   accessibilityLabel={stillVotingMention}
-                  style={[styles.dropdownTrigger, rosterOpen && styles.dropdownTriggerOpen]}
-                  innerStyle={styles.dropdownTriggerInner}
+                  style={styles.hintPressable}
                 >
-                  <Text
-                    style={[styles.dropdownTriggerText, { fontSize: s(14) }]}
-                    numberOfLines={2}
-                  >
+                  <Text style={[styles.hint, { fontSize: s(14) }]} numberOfLines={2}>
                     {stillVotingMention}
                   </Text>
-                  <RosterChevron isOpen={rosterOpen} size={s(18)} />
                 </PressableScale>
 
                 {rosterOpen ? (
@@ -355,46 +350,26 @@ const styles = StyleSheet.create({
   bottomContainerButtonOnly: {
     marginTop: 24,
   },
-  dropdownContainer: {
+  rosterSection: {
     width: '100%',
-    alignSelf: 'stretch',
-  },
-  dropdownTrigger: {
-    width: '100%',
-    minHeight: 48,
-    backgroundColor: '#3a3a3a',
-    borderRadius: 8,
-    borderColor: Colors.icon,
-    borderWidth: 1.5,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dropdownTriggerOpen: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomWidth: 0,
-  },
-  dropdownTriggerInner: {
-    width: '100%',
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
   },
-  dropdownTriggerText: {
-    flex: 1,
-    color: Colors.text,
+  hintPressable: {
+    alignSelf: 'center',
+  },
+  hint: {
+    color: Colors.icon,
+    textAlign: 'center',
     fontFamily: defaultFontFamily,
+    textDecorationLine: 'underline',
   },
   dropdownMenu: {
     width: '100%',
     backgroundColor: '#3a3a3a',
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1.5,
-    borderTopWidth: 1,
-    borderTopColor: '#5a5a5a',
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 12,
