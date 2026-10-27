@@ -18,6 +18,11 @@ import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow'
 import { persistLobbyStatus } from '@/services/lobbyStatus';
 import { scale, useScale } from '@/utils/scale';
 import {
+  INITIAL_ROSTER_LAYOUT,
+  nextRosterLayoutMode,
+  type RosterLayoutMode,
+} from '@/utils/votingRosterLayout';
+import {
   formatStillVotingMention,
   partitionVotingRoster,
   type NamedRosterMember,
@@ -67,21 +72,130 @@ function RosterChevron({ isOpen, size = 18 }: { isOpen: boolean; size?: number }
 function RosterNameList({
   members,
   fontSize,
+  columns,
 }: {
   members: NamedRosterMember[];
   fontSize: number;
+  columns: 1 | 2;
 }) {
   if (members.length === 0) {
     return null;
   }
 
   return (
-    <View style={styles.rosterNames}>
+    <View style={[styles.rosterNames, columns === 2 && styles.rosterNamesTwoCol]}>
       {members.map((member) => (
-        <Text key={member.id} style={[styles.rosterName, { fontSize }]}>
+        <Text
+          key={member.id}
+          style={[
+            styles.rosterName,
+            columns === 2 && styles.rosterNameTwoCol,
+            { fontSize },
+          ]}
+        >
           {member.name}
         </Text>
       ))}
+    </View>
+  );
+}
+
+function RosterDropdownPanel({
+  stillVoting,
+  alreadyVoted,
+  votedOpen,
+  onToggleVoted,
+  maxHeight,
+  headingFontSize,
+  nameFontSize,
+  extendFontSize,
+  chevronSize,
+}: {
+  stillVoting: NamedRosterMember[];
+  alreadyVoted: NamedRosterMember[];
+  votedOpen: boolean;
+  onToggleVoted: () => void;
+  maxHeight: number;
+  headingFontSize: number;
+  nameFontSize: number;
+  extendFontSize: number;
+  chevronSize: number;
+}) {
+  const [layout, setLayout] = useState<RosterLayoutMode>(INITIAL_ROSTER_LAYOUT);
+
+  useEffect(() => {
+    setLayout(INITIAL_ROSTER_LAYOUT);
+  }, [stillVoting, alreadyVoted, votedOpen]);
+
+  const handleMeasuredHeight = (height: number) => {
+    setLayout((current) => nextRosterLayoutMode(current, height, maxHeight));
+  };
+
+  const panelBody = (
+    <>
+      <Text style={[styles.rosterHeading, { fontSize: headingFontSize }]}>Still voting</Text>
+      <RosterNameList
+        members={stillVoting}
+        fontSize={nameFontSize}
+        columns={layout.columns}
+      />
+
+      {alreadyVoted.length > 0 ? (
+        <>
+          <PressableScale
+            onPress={onToggleVoted}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: votedOpen }}
+            accessibilityLabel={votedOpen ? 'Hide who voted' : 'Show who voted'}
+            style={styles.extendControl}
+            innerStyle={styles.extendControlInner}
+          >
+            <Text style={[styles.extendLabel, { fontSize: extendFontSize }]}>
+              {votedOpen ? 'Hide who voted' : 'Show who voted'}
+            </Text>
+            <RosterChevron isOpen={votedOpen} size={chevronSize} />
+          </PressableScale>
+
+          {votedOpen ? (
+            <View style={styles.votedSection}>
+              <Text style={[styles.rosterHeading, { fontSize: headingFontSize }]}>
+                Already voted
+              </Text>
+              <RosterNameList
+                members={alreadyVoted}
+                fontSize={nameFontSize}
+                columns={layout.columns}
+              />
+            </View>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  );
+
+  return (
+    <View style={styles.dropdownMenuAnchor} pointerEvents="box-none">
+      <View style={[styles.dropdownMenu, { maxHeight }]}>
+        {layout.scrollEnabled ? (
+          <ScrollView
+            style={styles.dropdownMenuScroll}
+            contentContainerStyle={styles.dropdownMenuContent}
+            nestedScrollEnabled
+            bounces={false}
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+          >
+            {panelBody}
+          </ScrollView>
+        ) : (
+          <View
+            style={styles.dropdownMenuContent}
+            onLayout={(event) => handleMeasuredHeight(event.nativeEvent.layout.height)}
+          >
+            {panelBody}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -242,44 +356,17 @@ export default function VotingWaitingScreen() {
                 </PressableScale>
 
                 {rosterOpen ? (
-                  <View style={[styles.dropdownMenu, { maxHeight: s(220) }]}>
-                    <ScrollView
-                      style={styles.dropdownMenuScroll}
-                      contentContainerStyle={styles.dropdownMenuContent}
-                      nestedScrollEnabled
-                      bounces={false}
-                      showsVerticalScrollIndicator
-                      keyboardShouldPersistTaps="handled"
-                    >
-                      <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Still voting</Text>
-                      <RosterNameList members={stillVoting} fontSize={s(16)} />
-
-                      {alreadyVoted.length > 0 ? (
-                        <>
-                          <PressableScale
-                            onPress={() => setVotedOpen((open) => !open)}
-                            accessibilityRole="button"
-                            accessibilityState={{ expanded: votedOpen }}
-                            accessibilityLabel={votedOpen ? 'Hide who voted' : 'Show who voted'}
-                            style={styles.extendControl}
-                            innerStyle={styles.extendControlInner}
-                          >
-                            <Text style={[styles.extendLabel, { fontSize: s(13) }]}>
-                              {votedOpen ? 'Hide who voted' : 'Show who voted'}
-                            </Text>
-                            <RosterChevron isOpen={votedOpen} size={s(16)} />
-                          </PressableScale>
-
-                          {votedOpen ? (
-                            <View style={styles.votedSection}>
-                              <Text style={[styles.rosterHeading, { fontSize: s(12) }]}>Already voted</Text>
-                              <RosterNameList members={alreadyVoted} fontSize={s(16)} />
-                            </View>
-                          ) : null}
-                        </>
-                      ) : null}
-                    </ScrollView>
-                  </View>
+                  <RosterDropdownPanel
+                    stillVoting={stillVoting}
+                    alreadyVoted={alreadyVoted}
+                    votedOpen={votedOpen}
+                    onToggleVoted={() => setVotedOpen((open) => !open)}
+                    maxHeight={s(220)}
+                    headingFontSize={s(12)}
+                    nameFontSize={s(16)}
+                    extendFontSize={s(13)}
+                    chevronSize={s(16)}
+                  />
                 ) : null}
               </View>
             ) : null}
@@ -378,18 +465,23 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
     textDecorationLine: 'underline',
   },
-  dropdownMenu: {
+  dropdownMenuAnchor: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: '100%',
     marginBottom: 8,
+    alignItems: 'center',
+    zIndex: 30,
+  },
+  dropdownMenu: {
+    alignSelf: 'center',
+    maxWidth: '100%',
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
     borderWidth: 1.5,
     overflow: 'hidden',
-    zIndex: 30,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -417,12 +509,16 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    alignSelf: 'stretch',
   },
   rosterNames: {
-    width: '100%',
     alignItems: 'center',
     gap: 4,
+  },
+  rosterNamesTwoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    maxWidth: scale(260),
   },
   rosterName: {
     color: Colors.text,
@@ -430,6 +526,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: defaultFontFamily,
     paddingVertical: 4,
+  },
+  rosterNameTwoCol: {
+    width: '50%',
+    paddingHorizontal: 6,
   },
   extendControl: {
     alignSelf: 'center',
@@ -448,7 +548,7 @@ const styles = StyleSheet.create({
     fontFamily: defaultFontFamily,
   },
   votedSection: {
-    width: '100%',
+    alignSelf: 'stretch',
     alignItems: 'center',
     gap: 8,
     marginTop: 4,
