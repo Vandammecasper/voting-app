@@ -49,6 +49,16 @@ describe('vote flow chrome', () => {
     expect(waiting).toContain('stillVotingMention');
     expect(waiting).toContain('Show who voted');
     expect(waiting).toContain('setVotedOpen(false)');
+    expect(waiting).toContain('styles.dropdownMenu');
+    expect(waiting).toContain('styles.dropdownMenuScroll');
+    expect(waiting).toContain('maxHeight: s(220)');
+    expect(waiting).toContain('nestedScrollEnabled');
+    expect(waiting).toContain("position: 'absolute'");
+    expect(waiting).toContain("bottom: '100%'");
+    expect(waiting).toContain('styles.hint');
+    expect(waiting).not.toContain('styles.dropdownTrigger');
+    expect(waiting).toContain('styles.chevronBox');
+    expect(waiting).toContain('styles.extendControlInner');
     expect(waiting).not.toContain('waiting for ${votesRemaining} more');
   });
 
