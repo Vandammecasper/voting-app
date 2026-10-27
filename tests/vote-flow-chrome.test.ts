@@ -50,9 +50,14 @@ describe('vote flow chrome', () => {
     expect(waiting).toContain('Show who voted');
     expect(waiting).toContain('setVotedOpen(false)');
     expect(waiting).toContain('styles.dropdownMenu');
-    expect(waiting).toContain('styles.dropdownMenuScroll');
-    expect(waiting).toContain('maxHeight: s(220)');
-    expect(waiting).toContain('nestedScrollEnabled');
+    expect(waiting).toContain('styles.dropdownMenuAnchor');
+    expect(waiting).toContain('nextRosterLayoutMode');
+    expect(waiting).toContain('getRosterPanelLimits');
+    expect(waiting).toContain('rosterNamesTwoCol');
+    expect(waiting).toContain('rosterLimits.maxHeight');
+    expect(waiting).toContain('rosterLimits.maxWidth');
+    expect(waiting).toContain('touchTarget(');
+    expect(waiting).toContain('numberOfLines={1}');
     expect(waiting).toContain("position: 'absolute'");
     expect(waiting).toContain("bottom: '100%'");
     expect(waiting).toContain('styles.hint');
