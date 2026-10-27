@@ -1,11 +1,11 @@
 ---
 id: TASK-4
 title: Polish still-voting roster as bottom dropdown
-status: Ready for deployment
+status: Done
 assignee:
   - '@casper'
 created_date: '2026-10-27T08:01:00Z'
-updated_date: '2026-10-27T08:40:00Z'
+updated_date: '2026-10-27T08:51:00Z'
 labels: []
 dependencies: []
 references:
@@ -49,6 +49,8 @@ Closed still-voting mention is plain underlined text again (no bordered trigger)
 Opened roster panel is absolutely positioned above the mention (bottom: 100%) so opening it does not reflow title, vote count, or host CTA.
 
 Opened roster panel capped at maxHeight s(220) with nested ScrollView so long name lists scroll inside the overlay.
+
+Merged PR #2. iOS 1.7.1 (25) built and submitted to App Store Connect (submission c6ace182-e86d-43d7-962a-dd280d9b7068).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
