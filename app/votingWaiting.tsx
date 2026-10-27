@@ -346,14 +346,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: defaultFontFamily,
   },
-  bottomContainer: {},
+  bottomContainer: {
+    overflow: 'visible',
+    zIndex: 10,
+  },
   bottomContainerButtonOnly: {
     marginTop: 24,
   },
   rosterSection: {
     width: '100%',
     alignItems: 'center',
-    gap: 12,
+    position: 'relative',
+    zIndex: 20,
+    overflow: 'visible',
   },
   hintPressable: {
     alignSelf: 'center',
@@ -365,7 +370,11 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   dropdownMenu: {
-    width: '100%',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: '100%',
+    marginBottom: 8,
     backgroundColor: '#3a3a3a',
     borderRadius: 8,
     borderColor: Colors.icon,
@@ -375,6 +384,12 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 8,
     alignItems: 'center',
+    zIndex: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
   },
   chevronBox: {
     alignItems: 'center',

@@ -5,7 +5,7 @@ status: Ready for deployment
 assignee:
   - '@casper'
 created_date: '2026-10-27T08:01:00Z'
-updated_date: '2026-10-27T08:35:00Z'
+updated_date: '2026-10-27T08:37:00Z'
 labels: []
 dependencies: []
 references:
@@ -45,6 +45,8 @@ The post-vote still-voting roster works but does not read as a dropdown: the ope
 Restyled as bordered bottom dropdown (trigger + menu panel matching select-dropdown cues). Chevron rotates inside fixed chevronBox so spin is about center; Show who voted stacks label + centered chevron via extendControlInner. Tests: voting-wait-roster + vote-flow-chrome 17 passed.
 
 Closed still-voting mention is plain underlined text again (no bordered trigger). Only the opened roster panel keeps the clear dropdown outline.
+
+Opened roster panel is absolutely positioned above the mention (bottom: 100%) so opening it does not reflow title, vote count, or host CTA.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

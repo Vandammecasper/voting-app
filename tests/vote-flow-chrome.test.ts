@@ -50,6 +50,8 @@ describe('vote flow chrome', () => {
     expect(waiting).toContain('Show who voted');
     expect(waiting).toContain('setVotedOpen(false)');
     expect(waiting).toContain('styles.dropdownMenu');
+    expect(waiting).toContain("position: 'absolute'");
+    expect(waiting).toContain("bottom: '100%'");
     expect(waiting).toContain('styles.hint');
     expect(waiting).not.toContain('styles.dropdownTrigger');
     expect(waiting).toContain('styles.chevronBox');
