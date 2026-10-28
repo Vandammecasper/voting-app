@@ -31,9 +31,13 @@ module.exports = function withVoipEntitlements(config) {
           // Add the build setting to allow non-modular includes inside the post_install block
           const postInstallFix = `
     # Fix for React Native Firebase non-modular header includes
+    # and Xcode requiring IPHONEOS_DEPLOYMENT_TARGET >= 15.0
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
       end
     end`;
           
@@ -44,6 +48,21 @@ module.exports = function withVoipEntitlements(config) {
               postInstallRegex,
               `$1${postInstallFix}\n$2`
             );
+            fs.writeFileSync(podfilePath, podfileContent, 'utf8');
+          }
+        } else if (!podfileContent.includes("IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'")) {
+          // Upgrade an older Firebase-only post_install fix to also bump deployment targets
+          const oldFix = `config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end`;
+          const newFix = `config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
+      end
+    end`;
+          if (podfileContent.includes(oldFix)) {
+            podfileContent = podfileContent.replace(oldFix, newFix);
             fs.writeFileSync(podfilePath, podfileContent, 'utf8');
           }
         }

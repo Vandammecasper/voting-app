@@ -2,7 +2,7 @@
   "expo": {
     "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.7.1",
+    "version": "1.7.2",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -67,7 +67,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "deploymentTarget": "15.1"
           },
           "android": {
             "compileSdkVersion": 36,

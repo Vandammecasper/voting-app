@@ -49,7 +49,6 @@ ui-debug.log
 app-example
 
 # generated native folders
-/ios
 /android
 
 # AI files
