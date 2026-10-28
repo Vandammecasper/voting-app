@@ -27,14 +27,13 @@ Integer or sequential IDs should not be used as external identifiers. Codes are 
 
 ## Residual risk without a backend
 
-Realtime Database rules cannot rate-limit code lookups. An attacker with anonymous auth can brute-force `lobbyCodes/$code`. Mitigations in this codebase:
+Realtime Database rules cannot rate-limit code lookups. An attacker with a custom client and anonymous auth can still brute-force `lobbyCodes/$code`. Mitigations in this codebase:
 
 - Higher-entropy codes
 - Locked `lobbyCodes` writes (no hijack/remap)
 - Lobby and participant reads restricted to members
 - Vote bodies readable by the host for the reveal and by the submitting voter via `ownBallots`; other participants only after ranking/completed. Receipts expose participation, not ballot content. Timing correlation between a new receipt and a new anonymous ballot remains a residual risk without a backend
-
-A Cloud Function that performs join/vote with abuse throttling would further reduce brute-force risk. That is out of scope for the rules-first hardening.
+- **Client-side lobby-code lookup throttle** (`services/lobbyCodeLookup.ts`): the official app persists a per-device bucket in AsyncStorage (20 attempts / 10 minutes). Join preview charges each distinct code once so polling does not burn the quota. This does not require Cloud Functions or a Blaze plan. It slows casual abuse in the shipped app only; a modified client can bypass it. A trusted callable with server-side throttling would be stronger if the project later upgrades.
 
 ## Authorization tests
 
