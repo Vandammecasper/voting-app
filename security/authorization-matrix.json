@@ -28,13 +28,18 @@
       },
       "votes": {
         "lobby1": {
-          "participant-uid": {
+          "ballot-pat": {
             "mvpName": "Host",
             "mvpComment": "clutch save",
             "loserName": "Oak",
             "loserComment": "own goal",
             "submittedAt": 1700000000003
           }
+        }
+      },
+      "ownBallots": {
+        "lobby1": {
+          "participant-uid": "ballot-pat"
         }
       },
       "voteReceipts": {
@@ -142,13 +147,18 @@
       },
       "votes": {
         "lobby1": {
-          "participant-uid": {
+          "ballot-pat": {
             "mvpName": "Host",
             "mvpComment": "clutch save",
             "loserName": "Oak",
             "loserComment": "own goal",
             "submittedAt": 1700000000003
           }
+        }
+      },
+      "ownBallots": {
+        "lobby1": {
+          "participant-uid": "ballot-pat"
         }
       }
     },
@@ -171,13 +181,18 @@
       },
       "votes": {
         "lobby1": {
-          "participant-uid": {
+          "ballot-pat": {
             "mvpName": "Host",
             "mvpComment": "clutch save",
             "loserName": "Oak",
             "loserComment": "own goal",
             "submittedAt": 1700000000003
           }
+        }
+      },
+      "ownBallots": {
+        "lobby1": {
+          "participant-uid": "ballot-pat"
         }
       }
     }
@@ -326,23 +341,47 @@
       "allow": false
     },
     {
-      "id": "other-participant-cannot-read-foreign-vote",
+      "id": "other-participant-cannot-read-foreign-ballot",
       "fixture": "votingSession",
       "principal": "otherParticipant",
-      "path": "votes/lobby1/participant-uid",
+      "path": "votes/lobby1/ballot-pat",
       "action": "get",
       "allow": false
     },
     {
-      "id": "participant-can-read-own-vote",
+      "id": "participant-can-read-own-ballot-via-pointer",
       "fixture": "votingSession",
       "principal": "participant",
-      "path": "votes/lobby1/participant-uid",
+      "path": "votes/lobby1/ballot-pat",
       "action": "get",
       "allow": true
     },
     {
-      "id": "creator-can-read-vote-tree",
+      "id": "participant-can-read-own-ballot-pointer",
+      "fixture": "votingSession",
+      "principal": "participant",
+      "path": "ownBallots/lobby1/participant-uid",
+      "action": "get",
+      "allow": true
+    },
+    {
+      "id": "creator-cannot-read-participant-own-ballot-pointer",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "ownBallots/lobby1/participant-uid",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "other-participant-cannot-read-foreign-own-ballot-pointer",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "ownBallots/lobby1/participant-uid",
+      "action": "get",
+      "allow": false
+    },
+    {
+      "id": "creator-can-read-anonymous-vote-tree",
       "fixture": "votingSession",
       "principal": "creator",
       "path": "votes/lobby1",
@@ -358,11 +397,32 @@
       "allow": true
     },
     {
+      "id": "creator-can-read-receipts",
+      "fixture": "votingSession",
+      "principal": "creator",
+      "path": "voteReceipts/lobby1",
+      "action": "get",
+      "allow": true
+    },
+    {
       "id": "stranger-cannot-read-receipts",
       "fixture": "votingSession",
       "principal": "authStranger",
       "path": "voteReceipts/lobby1",
       "action": "get",
+      "allow": false
+    },
+    {
+      "id": "participant-cannot-write-vote-keyed-by-uid",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "votes/lobby1/other-uid",
+      "action": "set",
+      "data": {
+        "mvpName": "Host",
+        "mvpComment": "try uid key",
+        "submittedAt": 1700000000999
+      },
       "allow": false
     },
     {
@@ -594,15 +654,29 @@
       "allow": false
     },
     {
-      "id": "other-participant-cannot-overwrite-vote",
+      "id": "other-participant-cannot-overwrite-ballot",
       "fixture": "votingSession",
       "principal": "participant",
-      "path": "votes/lobby1/participant-uid",
+      "path": "votes/lobby1/ballot-pat",
       "action": "set",
       "data": {
         "mvpName": "Oak",
         "mvpComment": "changed",
         "submittedAt": 1700000000999
+      },
+      "allow": false
+    },
+    {
+      "id": "participant-cannot-write-ballot-with-voterId",
+      "fixture": "votingSession",
+      "principal": "otherParticipant",
+      "path": "votes/lobby1/ballot-oak",
+      "action": "set",
+      "data": {
+        "mvpName": "Host",
+        "mvpComment": "tagged",
+        "submittedAt": 1700000000999,
+        "voterId": "other-uid"
       },
       "allow": false
     },

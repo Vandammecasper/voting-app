@@ -402,9 +402,9 @@ export default function UserInputScreen() {
           lobbyId,
           joinedAt: Date.now(),
         });
-        const existingVote = await restGet(`votes/${lobbyId}/${user.uid}`);
+        const existingReceipt = await restGet(`voteReceipts/${lobbyId}/${user.uid}`);
         router.push({
-          pathname: existingVote ? '/votingWaiting' : '/waitingRoom',
+          pathname: existingReceipt ? '/votingWaiting' : '/waitingRoom',
           params: { voteId: lobbyId },
         });
         return;
