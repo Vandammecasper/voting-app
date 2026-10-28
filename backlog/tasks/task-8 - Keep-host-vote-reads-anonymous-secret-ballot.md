@@ -1,10 +1,10 @@
 ---
 id: TASK-8
 title: Keep host vote reads anonymous (secret ballot)
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 15:38'
-updated_date: '2026-10-28 15:40'
+updated_date: '2026-10-28 15:45'
 labels:
   - security
 dependencies: []
