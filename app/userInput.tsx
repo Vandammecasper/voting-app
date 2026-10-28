@@ -8,34 +8,38 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, defaultFontFamily } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePolledRestData } from '@/hooks/usePolledRestData';
 import {
-  generateLobbyCode,
-  LOBBY_CODE_LENGTH,
-  LobbyCodeMapping,
-  pushData,
-  writeData,
+    generateLobbyCode,
+    LOBBY_CODE_LENGTH,
+    LobbyCodeMapping,
+    pushData,
+    writeData,
 } from '@/services/database';
 import {
-  formatCaughtError,
-  formatRestFailure,
-  restGet,
-  restGetDetailed,
-  restPut,
-  restPutDetailed,
-  restPushDetailed,
-  type RestFailure,
+    formatCaughtError,
+    formatRestFailure,
+    restGet,
+    restPushDetailed,
+    restPut,
+    restPutDetailed,
+    type RestFailure,
 } from '@/services/firebaseRest';
 import {
-  availableMemberNames,
-  claimedNameSet,
-  claimedNameSlotPath,
-  isTeamLobby,
-  listTeams,
-  MIN_TEAM_MEMBERS,
-  normalizeMemberList,
-  usableTeams,
-  UserTeamWithId,
+    checkLobbyCodeAvailable,
+    formatLobbyCodeLookupError,
+    isRateLimitedLookupError,
+    lookupLobbyCode,
+} from '@/services/lobbyCodeLookup';
+import {
+    availableMemberNames,
+    claimedNameSet,
+    claimedNameSlotPath,
+    isTeamLobby,
+    listTeams,
+    MIN_TEAM_MEMBERS,
+    normalizeMemberList,
+    usableTeams,
+    UserTeamWithId,
 } from '@/services/teams';
 import { scale, touchTarget } from '@/utils/scale';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -77,27 +81,28 @@ function isOpenJoinStatus(status: string): boolean {
 }
 
 async function allocateLobbyCode(): Promise<{ code: string } | RestFailure> {
-  let lastFailure: RestFailure | null = null;
+  let lastError = 'Could not allocate a unique lobby code';
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const code = generateLobbyCode();
-    const existing = await restGetDetailed(`lobbyCodes/${code}`);
-    if (!existing.ok) {
-      lastFailure = existing;
-      continue;
-    }
-    if (existing.data == null) {
-      return { code };
+    try {
+      const { available } = await checkLobbyCodeAvailable(code);
+      if (available) {
+        return { code };
+      }
+    } catch (error) {
+      lastError = formatLobbyCodeLookupError(error);
+      if (isRateLimitedLookupError(error)) {
+        break;
+      }
     }
   }
-  return (
-    lastFailure ?? {
-      ok: false,
-      path: 'lobbyCodes',
-      method: 'GET',
-      status: null,
-      error: 'Could not allocate a unique lobby code',
-    }
-  );
+  return {
+    ok: false,
+    path: 'lobbyCodes',
+    method: 'GET',
+    status: null,
+    error: lastError,
+  };
 }
 
 function showCreateError(step: string, detail: string) {
@@ -164,6 +169,9 @@ export default function UserInputScreen() {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [joinLobby, setJoinLobby] = useState<JoinableLobbyData | null>(null);
   const [alreadyMember, setAlreadyMember] = useState(false);
+  const [polledJoinMapping, setPolledJoinMapping] = useState<
+    LobbyCodeMapping | string | null
+  >(null);
   const { user } = useAuth();
 
   const availableTeams = useMemo(() => usableTeams(teams), [teams]);
@@ -175,10 +183,6 @@ export default function UserInputScreen() {
   );
   const isJoinTeamLobby = isJoinMode && isTeamLobby(joinLobby);
   const normalizedJoinCode = lobbyCode.trim().toUpperCase();
-  const { data: polledJoinMapping } = usePolledRestData<LobbyCodeMapping | string>(
-    isJoinMode && normalizedJoinCode.length >= 6 ? `lobbyCodes/${normalizedJoinCode}` : null,
-    2000
-  );
 
   useEffect(() => {
     if (isJoinMode || !user?.uid) return;
@@ -195,6 +199,46 @@ export default function UserInputScreen() {
       cancelled = true;
     };
   }, [isJoinMode, user?.uid]);
+
+  useEffect(() => {
+    if (!isJoinMode || normalizedJoinCode.length !== LOBBY_CODE_LENGTH) {
+      setPolledJoinMapping(null);
+      return;
+    }
+
+    let cancelled = false;
+    let rateLimitAlerted = false;
+
+    const loadMapping = async () => {
+      try {
+        const result = await lookupLobbyCode(normalizedJoinCode);
+        if (!cancelled) {
+          setPolledJoinMapping(result.found ? result.mapping : null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPolledJoinMapping(null);
+          if (isRateLimitedLookupError(error) && !rateLimitAlerted) {
+            rateLimitAlerted = true;
+            Alert.alert(
+              'Slow down',
+              formatLobbyCodeLookupError(error)
+            );
+          }
+        }
+      }
+    };
+
+    void loadMapping();
+    const interval = setInterval(() => {
+      void loadMapping();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isJoinMode, normalizedJoinCode]);
 
   useEffect(() => {
     if (!isJoinMode) return;
@@ -386,7 +430,17 @@ export default function UserInputScreen() {
 
     try {
       const code = lobbyCode.trim().toUpperCase();
-      const mapping = await restGet<LobbyCodeMapping | string>(`lobbyCodes/${code}`);
+      let mapping: LobbyCodeMapping | string | null = null;
+      try {
+        const lookup = await lookupLobbyCode(code);
+        mapping = lookup.found ? lookup.mapping : null;
+      } catch (error) {
+        Alert.alert(
+          isRateLimitedLookupError(error) ? 'Slow down' : "Couldn't find lobby",
+          formatLobbyCodeLookupError(error)
+        );
+        return;
+      }
       const lobbyId = lobbyIdFromCodeMapping(mapping);
       const lobbyData = joinPreviewFromMapping(mapping);
 
