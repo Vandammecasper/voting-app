@@ -1,10 +1,10 @@
 ---
 id: TASK-9
 title: Rate-limit lobby code lookups
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 20:09'
-updated_date: '2026-10-28 20:18'
+updated_date: '2026-10-28 20:20'
 labels:
   - security
 dependencies: []
