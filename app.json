@@ -38,6 +38,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.caspervd.voting_app",
+      "versionCode": 37,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
