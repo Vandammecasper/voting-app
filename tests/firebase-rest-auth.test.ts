@@ -1,41 +1,61 @@
 jest.mock('@/services/firebaseAuth', () => ({
-  getCurrentIdToken: jest.fn(),
   getFirebaseAuth: jest.fn(),
 }));
 
-jest.mock('@/services/firebaseDatabaseUrl', () => ({
-  getFirebaseDatabaseUrl: jest.fn(),
+const mockReadDataDetailed = jest.fn();
+const mockWriteDataDetailed = jest.fn();
+const mockUpdateDataDetailed = jest.fn();
+const mockDeleteDataDetailed = jest.fn();
+const mockPushDataDetailed = jest.fn();
+
+jest.mock('@/services/database', () => ({
+  readDataDetailed: (...args: unknown[]) => mockReadDataDetailed(...args),
+  writeDataDetailed: (...args: unknown[]) => mockWriteDataDetailed(...args),
+  updateDataDetailed: (...args: unknown[]) => mockUpdateDataDetailed(...args),
+  deleteDataDetailed: (...args: unknown[]) => mockDeleteDataDetailed(...args),
+  pushDataDetailed: (...args: unknown[]) => mockPushDataDetailed(...args),
 }));
 
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
-import { restGet } from '@/services/firebaseRest';
+import { getFirebaseAuth } from '@/services/firebaseAuth';
+import { restGet, restPutDetailed } from '@/services/firebaseRest';
 
-describe('firebase REST authentication', () => {
-  const token = 'test-id-token-secret';
-  const base = 'https://example.firebaseio.com';
-
+describe('firebaseRest SDK-backed authentication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getFirebaseAuth as jest.Mock).mockReturnValue({ currentUser: { uid: 'u1' } });
-    (getCurrentIdToken as jest.Mock).mockResolvedValue(token);
-    (getFirebaseDatabaseUrl as jest.Mock).mockReturnValue(base);
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      text: async () => 'null',
-    }) as unknown as typeof fetch;
+    mockReadDataDetailed.mockResolvedValue({ ok: true, data: null });
+    mockWriteDataDetailed.mockResolvedValue({ ok: true });
+    global.fetch = jest.fn();
   });
 
-  it('sends Authorization Bearer and keeps the ID token out of the URL', async () => {
+  it('reads through the native SDK and never calls fetch with an auth= URL', async () => {
     await restGet('lobbies/abc');
 
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toBe(`${base}/lobbies/abc.json`);
-    expect(url).not.toContain(token);
-    expect(url).not.toMatch(/[?&]auth=/);
-    expect(init.headers.Authorization).toBe(`Bearer ${token}`);
+    expect(mockReadDataDetailed).toHaveBeenCalledWith('lobbies/abc');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('writes through the native SDK without putting tokens in URLs', async () => {
+    const result = await restPutDetailed('lobbies/abc', { status: 'waiting' });
+
+    expect(result).toEqual({ ok: true });
+    expect(mockWriteDataDetailed).toHaveBeenCalledWith('lobbies/abc', {
+      status: 'waiting',
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the user is not signed in', async () => {
+    (getFirebaseAuth as jest.Mock).mockReturnValue({ currentUser: null });
+
+    const result = await restPutDetailed('lobbies/abc', { status: 'waiting' });
+    expect(result).toEqual({
+      ok: false,
+      path: 'lobbies/abc',
+      method: 'PUT',
+      status: null,
+      error: 'Not signed in',
+    });
+    expect(mockWriteDataDetailed).not.toHaveBeenCalled();
   });
 });

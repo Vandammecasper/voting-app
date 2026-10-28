@@ -1,14 +1,15 @@
-import { getCurrentIdToken, getFirebaseAuth } from '@/services/firebaseAuth';
-import { getFirebaseDatabaseUrl } from '@/services/firebaseDatabaseUrl';
+import { getFirebaseAuth } from '@/services/firebaseAuth';
+import {
+  deleteDataDetailed,
+  pushDataDetailed,
+  readDataDetailed,
+  updateDataDetailed,
+  writeDataDetailed,
+  type DbFailure,
+} from '@/services/database';
 import { fillRandomBytes } from '@/services/randomBytes';
 
-export type RestFailure = {
-  ok: false;
-  path: string;
-  method: string;
-  status: number | null;
-  error: string;
-};
+export type RestFailure = DbFailure;
 
 export type RestWriteSuccess = { ok: true };
 export type RestWriteResult = RestWriteSuccess | RestFailure;
@@ -16,33 +17,6 @@ export type RestPushResult = { ok: true; key: string } | RestFailure;
 export type RestGetResult<T> =
   | { ok: true; data: T | null }
   | RestFailure;
-
-function databaseUrl(path: string): string | null {
-  const base = getFirebaseDatabaseUrl();
-  if (!base) {
-    return null;
-  }
-  const trimmed = path.replace(/^\/+|\/+$/g, '');
-  return trimmed ? `${base}/${trimmed}.json` : `${base}/.json`;
-}
-
-function firebaseErrorMessage(body: unknown, fallback: string): string {
-  if (body && typeof body === 'object' && 'error' in body) {
-    const err = (body as { error: unknown }).error;
-    if (typeof err === 'string' && err.trim()) {
-      return err;
-    }
-    if (
-      err &&
-      typeof err === 'object' &&
-      'message' in err &&
-      typeof (err as { message: unknown }).message === 'string'
-    ) {
-      return (err as { message: string }).message;
-    }
-  }
-  return fallback;
-}
 
 export function formatRestFailure(failure: RestFailure): string {
   const status = failure.status != null ? `HTTP ${failure.status}` : 'no response';
@@ -67,99 +41,23 @@ export function isTransientFetchError(error: unknown): boolean {
   );
 }
 
-async function parseJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) {
+function requireSignedIn(path: string, method: string): RestFailure | null {
+  if (getFirebaseAuth().currentUser) {
     return null;
   }
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
+  return { ok: false, path, method, status: null, error: 'Not signed in' };
 }
 
-async function prepareRequest(
-  path: string,
-  method: string
-): Promise<{ url: string; token: string } | RestFailure> {
-  const currentUser = getFirebaseAuth().currentUser;
-  if (!currentUser) {
-    return { ok: false, path, method, status: null, error: 'Not signed in' };
-  }
-
-  const token = await getCurrentIdToken();
-  if (!token) {
-    return { ok: false, path, method, status: null, error: 'Missing auth token' };
-  }
-
-  const baseUrl = databaseUrl(path);
-  if (!baseUrl) {
-    return {
-      ok: false,
-      path,
-      method,
-      status: null,
-      error: 'Database URL is not configured',
-    };
-  }
-
-  // Prefer Authorization: Bearer only — never put ID tokens in query strings
-  // (proxies, crash reporters, and OS network logs often capture URLs).
-  return { url: baseUrl, token };
-}
-
-async function authedRequest(
-  path: string,
-  init: RequestInit
-): Promise<{ response: Response; token: string } | RestFailure> {
-  const method = init.method ?? 'GET';
-  try {
-    const prepared = await prepareRequest(path, method);
-    if ('ok' in prepared && prepared.ok === false) {
-      return prepared;
-    }
-
-    const response = await fetch(prepared.url, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${prepared.token}`,
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {}),
-      },
-    });
-    return { response, token: prepared.token };
-  } catch (error) {
-    return {
-      ok: false,
-      path,
-      method,
-      status: null,
-      error: isTransientFetchError(error)
-        ? 'Request was cancelled'
-        : formatCaughtError(error),
-    };
-  }
-}
-
+/**
+ * Authenticated database reads/writes go through the native RN Firebase SDK
+ * so Firebase ID tokens are never placed in REST URL query strings.
+ */
 export async function restGetDetailed<T>(path: string): Promise<RestGetResult<T>> {
-  const result = await authedRequest(path, { method: 'GET' });
-  if ('ok' in result && result.ok === false) {
-    return result;
+  const authError = requireSignedIn(path, 'GET');
+  if (authError) {
+    return authError;
   }
-
-  const body = await parseJson(result.response);
-  if (!result.response.ok) {
-    return {
-      ok: false,
-      path,
-      method: 'GET',
-      status: result.response.status,
-      error: firebaseErrorMessage(body, result.response.statusText || 'Request failed'),
-    };
-  }
-
-  return { ok: true, data: body as T | null };
+  return readDataDetailed<T>(path);
 }
 
 export async function restGet<T>(path: string): Promise<T | null> {
@@ -171,73 +69,26 @@ export async function restGet<T>(path: string): Promise<T | null> {
 }
 
 export async function restPutDetailed<T>(path: string, data: T): Promise<RestWriteResult> {
-  const result = await authedRequest(path, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  if ('ok' in result && result.ok === false) {
-    return result;
+  const authError = requireSignedIn(path, 'PUT');
+  if (authError) {
+    return authError;
   }
-
-  const body = await parseJson(result.response);
-  if (!result.response.ok) {
-    return {
-      ok: false,
-      path,
-      method: 'PUT',
-      status: result.response.status,
-      error: firebaseErrorMessage(body, result.response.statusText || 'Request failed'),
-    };
-  }
-
-  return { ok: true };
+  return writeDataDetailed(path, data);
 }
 
 export async function restPut<T>(path: string, data: T): Promise<boolean> {
   return (await restPutDetailed(path, data)).ok;
 }
 
-async function patchWithSdkFallback(
-  path: string,
-  data: Record<string, unknown>,
-  restFailure: RestFailure
-): Promise<RestWriteResult> {
-  try {
-    const { updateData } = await import('@/services/database');
-    await updateData(path, data);
-    return { ok: true };
-  } catch (error) {
-    return {
-      ...restFailure,
-      error: `${restFailure.error}\nSDK: ${formatCaughtError(error)}`,
-    };
-  }
-}
-
 export async function restPatchDetailed(
   path: string,
   data: Record<string, unknown>
 ): Promise<RestWriteResult> {
-  const result = await authedRequest(path, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-  if ('ok' in result && result.ok === false) {
-    return patchWithSdkFallback(path, data, result);
+  const authError = requireSignedIn(path || '/', 'PATCH');
+  if (authError) {
+    return authError;
   }
-
-  const body = await parseJson(result.response);
-  if (!result.response.ok) {
-    return patchWithSdkFallback(path, data, {
-      ok: false,
-      path,
-      method: 'PATCH',
-      status: result.response.status,
-      error: firebaseErrorMessage(body, result.response.statusText || 'Request failed'),
-    });
-  }
-
-  return { ok: true };
+  return updateDataDetailed(path, data);
 }
 
 export async function restPatch(
@@ -248,11 +99,11 @@ export async function restPatch(
 }
 
 export async function restDelete(path: string): Promise<boolean> {
-  const result = await authedRequest(path, { method: 'DELETE' });
-  if ('ok' in result && result.ok === false) {
+  const authError = requireSignedIn(path, 'DELETE');
+  if (authError) {
     return false;
   }
-  return result.response.ok;
+  return (await deleteDataDetailed(path)).ok;
 }
 
 const PUSH_KEY_CHARS =
@@ -265,22 +116,11 @@ export function generateChildKey(): string {
 }
 
 export async function restPushDetailed<T>(path: string, data: T): Promise<RestPushResult> {
-  try {
-    const key = generateChildKey();
-    const written = await restPutDetailed(`${path}/${key}`, data);
-    if (!written.ok) {
-      return written;
-    }
-    return { ok: true, key };
-  } catch (error) {
-    return {
-      ok: false,
-      path,
-      method: 'PUT',
-      status: null,
-      error: formatCaughtError(error),
-    };
+  const authError = requireSignedIn(path, 'PUT');
+  if (authError) {
+    return authError;
   }
+  return pushDataDetailed(path, data);
 }
 
 export async function restPush<T>(path: string, data: T): Promise<string | null> {
@@ -288,7 +128,7 @@ export async function restPush<T>(path: string, data: T): Promise<string | null>
   return result.ok ? result.key : null;
 }
 
-/** Multi-path update from the database root (Firebase REST PATCH). */
+/** Multi-path update from the database root. */
 export async function restUpdatePaths(
   updates: Record<string, unknown>
 ): Promise<boolean> {
