@@ -1,10 +1,13 @@
 jest.mock('@/services/firebaseAuth', () => ({
-  getCurrentIdToken: jest.fn(),
   getFirebaseAuth: jest.fn(() => ({ currentUser: null })),
 }));
 
-jest.mock('@/services/firebaseDatabaseUrl', () => ({
-  getFirebaseDatabaseUrl: jest.fn(),
+jest.mock('@/services/database', () => ({
+  readDataDetailed: jest.fn(),
+  writeDataDetailed: jest.fn(),
+  updateDataDetailed: jest.fn(),
+  deleteDataDetailed: jest.fn(),
+  pushDataDetailed: jest.fn(),
 }));
 
 import { formatCaughtError, formatRestFailure, isTransientFetchError } from '@/services/firebaseRest';

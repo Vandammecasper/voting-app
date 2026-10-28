@@ -1,8 +1,12 @@
-import { restGet } from '@/services/firebaseRest';
+import { subscribeToData } from '@/services/database';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-export function usePolledRestData<T>(path: string | null, intervalMs: number = 2000) {
+/**
+ * Focus-scoped realtime database subscription.
+ * Kept export name for existing screens; no longer polls REST with auth= URLs.
+ */
+export function usePolledRestData<T>(path: string | null, _intervalMs: number = 2000) {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -15,25 +19,31 @@ export function usePolledRestData<T>(path: string | null, intervalMs: number = 2
       }
 
       let isMounted = true;
+      setIsLoading(true);
 
-      const fetchData = async () => {
-        const result = await restGet<T>(path);
-        if (isMounted) {
-          setData(result);
+      const unsubscribe = subscribeToData<T>(
+        path,
+        (value) => {
+          if (!isMounted) {
+            return;
+          }
+          setData(value);
+          setIsLoading(false);
+        },
+        () => {
+          if (!isMounted) {
+            return;
+          }
+          setData(null);
           setIsLoading(false);
         }
-      };
-
-      void fetchData();
-      const interval = setInterval(() => {
-        void fetchData();
-      }, intervalMs);
+      );
 
       return () => {
         isMounted = false;
-        clearInterval(interval);
+        unsubscribe();
       };
-    }, [path, intervalMs])
+    }, [path])
   );
 
   return { data, isLoading };
