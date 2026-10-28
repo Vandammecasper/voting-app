@@ -22,7 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePolledRestData } from '@/hooks/usePolledRestData';
 import { useVoteRouteParams } from '@/hooks/useVoteRouteParams';
 import { normalizeMemberList } from '@/services/teams';
-import { restGet, restUpdatePaths } from '@/services/firebaseRest';
+import { generateChildKey, restGet, restUpdatePaths } from '@/services/firebaseRest';
 import { isPublishedRankingStatus, isResultsStatus } from '@/services/lobbyFlow';
 import { mvpVoteOptions } from '@/services/voteOptions';
 import { loadVoteDraft, removeVoteDraft } from '@/services/voteDraftStorage';
@@ -225,9 +225,9 @@ export default function VotingScreen() {
     setIsSubmitting(true);
 
     try {
-      // Check if user has already voted
-      const existingVote = await restGet(`votes/${voteId}/${user.uid}`);
-      if (existingVote) {
+      // Receipts are the public "has voted" signal; ballots use opaque ids.
+      const existingReceipt = await restGet(`voteReceipts/${voteId}/${user.uid}`);
+      if (existingReceipt) {
         Alert.alert('Already Voted', 'You have already submitted your vote.');
         // Navigate to waiting screen since they already voted
         router.replace({
@@ -255,8 +255,10 @@ export default function VotingScreen() {
         voteData.loserComment = loserComment.trim();
       }
 
+      const ballotId = generateChildKey();
       const success = await restUpdatePaths({
-        [`votes/${voteId}/${user.uid}`]: voteData,
+        [`votes/${voteId}/${ballotId}`]: voteData,
+        [`ownBallots/${voteId}/${user.uid}`]: ballotId,
         [`voteReceipts/${voteId}/${user.uid}`]: true,
       });
       

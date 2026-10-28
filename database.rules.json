@@ -47,10 +47,19 @@
       "$lobbyId": {
         ".read": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid || (root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'ranking' || root.child('lobbies/' + $lobbyId + '/status').val() === 'completed')))",
         ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && !newData.exists()",
+        "$ballotId": {
+          ".read": "auth != null && (root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid || (root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'ranking' || root.child('lobbies/' + $lobbyId + '/status').val() === 'completed')) || root.child('ownBallots/' + $lobbyId + '/' + auth.uid).val() === $ballotId)",
+          ".write": "auth != null && $ballotId !== auth.uid && !data.exists() && newData.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && !root.child('voteReceipts/' + $lobbyId + '/' + auth.uid).exists() && !root.child('ownBallots/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))",
+          ".validate": "newData.hasChildren(['mvpName', 'mvpComment', 'submittedAt']) && !newData.hasChild('voterId') && !newData.hasChild('userId') && !newData.hasChild('uid') && !newData.hasChild('creatorId') && newData.child('mvpName').isString() && newData.child('mvpName').val().length > 0 && newData.child('mvpName').val().length <= 40 && newData.child('mvpComment').isString() && newData.child('mvpComment').val().length > 0 && newData.child('mvpComment').val().length <= 2000 && newData.child('submittedAt').isNumber() && (!newData.hasChild('loserName') || (newData.child('loserName').isString() && newData.child('loserName').val().length > 0 && newData.child('loserName').val().length <= 40)) && (!newData.hasChild('loserComment') || (newData.child('loserComment').isString() && newData.child('loserComment').val().length > 0 && newData.child('loserComment').val().length <= 2000))"
+        }
+      }
+    },
+    "ownBallots": {
+      "$lobbyId": {
+        ".write": "auth != null && root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid && !newData.exists()",
         "$userId": {
-          ".read": "auth != null && (auth.uid === $userId || root.child('lobbies/' + $lobbyId + '/creatorId').val() === auth.uid)",
-          ".write": "auth != null && auth.uid === $userId && !data.exists() && newData.exists() && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))",
-          ".validate": "newData.hasChildren(['mvpName', 'mvpComment', 'submittedAt']) && newData.child('mvpName').isString() && newData.child('mvpName').val().length > 0 && newData.child('mvpName').val().length <= 40 && newData.child('mvpComment').isString() && newData.child('mvpComment').val().length > 0 && newData.child('mvpComment').val().length <= 2000 && newData.child('submittedAt').isNumber() && (!newData.hasChild('loserName') || (newData.child('loserName').isString() && newData.child('loserName').val().length > 0 && newData.child('loserName').val().length <= 40)) && (!newData.hasChild('loserComment') || (newData.child('loserComment').isString() && newData.child('loserComment').val().length > 0 && newData.child('loserComment').val().length <= 2000))"
+          ".read": "auth != null && auth.uid === $userId",
+          ".write": "auth != null && auth.uid === $userId && !data.exists() && newData.exists() && newData.isString() && newData.val().length > 0 && newData.val().length <= 64 && newData.val() !== auth.uid && root.child('participants/' + $lobbyId + '/' + auth.uid).exists() && !root.child('voteReceipts/' + $lobbyId + '/' + auth.uid).exists() && (root.child('lobbies/' + $lobbyId + '/status').val() === 'voting' || (root.child('lobbies/' + $lobbyId + '/status').val() === 'waiting' && root.child('lobbies/' + $lobbyId + '/teamMembers').exists()))"
         }
       }
     },

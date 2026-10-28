@@ -289,8 +289,8 @@ export default function WaitingRoomScreen() {
     let cancelled = false;
     const userId = user.uid;
     async function checkExistingVote() {
-      const existingVote = await restGet(`votes/${voteId}/${userId}`);
-      if (cancelled || hasNavigated.current || !existingVote) {
+      const existingReceipt = await restGet(`voteReceipts/${voteId}/${userId}`);
+      if (cancelled || hasNavigated.current || !existingReceipt) {
         return;
       }
       hasNavigated.current = true;

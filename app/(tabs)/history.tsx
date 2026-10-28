@@ -29,12 +29,6 @@ interface LobbyData {
   loserRanking?: unknown;
 }
 
-interface VoteData {
-  mvpName: string;
-  loserName?: string;
-  submittedAt: number;
-}
-
 interface HistoryItem {
   lobbyId: string;
   lobbyData: LobbyData;
@@ -276,8 +270,8 @@ export default function HistoryScreen() {
     switch (status) {
       case 'waiting': {
         if (user && isTeamLobby(item.lobbyData)) {
-          const myVote = await restGet<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
-          if (myVote != null) {
+          const myReceipt = await restGet(`voteReceipts/${item.lobbyId}/${user.uid}`);
+          if (myReceipt != null) {
             router.push({
               pathname: '/votingWaiting',
               params: { voteId: item.lobbyId, from: 'history' },
@@ -293,8 +287,8 @@ export default function HistoryScreen() {
       }
       case 'voting': {
         if (user) {
-          const myVote = await restGet<VoteData>(`votes/${item.lobbyId}/${user.uid}`);
-          if (myVote != null) {
+          const myReceipt = await restGet(`voteReceipts/${item.lobbyId}/${user.uid}`);
+          if (myReceipt != null) {
             router.push({
               pathname: '/votingWaiting',
               params: { voteId: item.lobbyId, from: 'history' },
@@ -351,6 +345,7 @@ export default function HistoryScreen() {
               // (Firebase rules check lobby creatorId, so lobby must still exist)
               await restDelete(`participants/${lobbyId}`);
               await restDelete(`votes/${lobbyId}`);
+              await restDelete(`ownBallots/${lobbyId}`);
               await restDelete(`voteReceipts/${lobbyId}`);
               await restDelete(`lobbyCodes/${code}`);
               await restDelete(`lobbies/${lobbyId}`);
