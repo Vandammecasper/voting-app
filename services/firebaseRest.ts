@@ -104,8 +104,9 @@ async function prepareRequest(
     };
   }
 
-  const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}auth=${encodeURIComponent(token)}`;
-  return { url, token };
+  // Prefer Authorization: Bearer only — never put ID tokens in query strings
+  // (proxies, crash reporters, and OS network logs often capture URLs).
+  return { url: baseUrl, token };
 }
 
 async function authedRequest(
