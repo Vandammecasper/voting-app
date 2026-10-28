@@ -1,10 +1,10 @@
 ---
 id: TASK-7.2
 title: Route firebaseRest data ops through the native SDK
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 14:32'
-updated_date: '2026-10-28 14:44'
+updated_date: '2026-10-28 15:19'
 labels:
   - security
 dependencies:

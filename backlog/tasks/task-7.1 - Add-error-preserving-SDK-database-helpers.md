@@ -1,10 +1,10 @@
 ---
 id: TASK-7.1
 title: Add error-preserving SDK database helpers
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 14:31'
-updated_date: '2026-10-28 14:42'
+updated_date: '2026-10-28 15:19'
 labels:
   - security
 dependencies: []

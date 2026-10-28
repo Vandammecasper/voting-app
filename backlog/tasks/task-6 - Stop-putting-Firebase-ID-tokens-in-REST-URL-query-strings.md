@@ -1,10 +1,10 @@
 ---
 id: TASK-6
 title: Use Firebase-documented RTDB REST ID-token auth
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 13:57'
-updated_date: '2026-10-28 15:18'
+updated_date: '2026-10-28 15:19'
 labels:
   - security
 dependencies: []

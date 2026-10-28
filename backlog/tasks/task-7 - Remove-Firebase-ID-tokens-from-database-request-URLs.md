@@ -1,10 +1,10 @@
 ---
 id: TASK-7
 title: Remove Firebase ID tokens from database request URLs
-status: Ready for deployment
+status: Done
 assignee: []
 created_date: '2026-10-28 14:31'
-updated_date: '2026-10-28 15:18'
+updated_date: '2026-10-28 15:19'
 labels:
   - security
 dependencies:
