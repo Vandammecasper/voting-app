@@ -2,7 +2,7 @@
   "expo": {
     "name": "MVP vote",
     "slug": "voting-app",
-    "version": "1.7.2",
+    "version": "1.7.3",
     "owner": "caspervandamme",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -50,6 +50,7 @@
       "expo-video",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "./plugins/with-scene-lifecycle.js",
       "./app.plugin.js",
       [
         "expo-splash-screen",

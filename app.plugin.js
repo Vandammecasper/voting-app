@@ -77,11 +77,11 @@ module.exports = function withVoipEntitlements(config) {
     'ios',
     async (config) => {
       const rootPlistPath = path.join(config.modRequest.projectRoot, 'GoogleService-Info.plist');
-      const iosPlistPath = path.join(
-        config.modRequest.platformProjectRoot,
-        'votingapp',
-        'GoogleService-Info.plist'
-      );
+      const iosProjectRoot = config.modRequest.platformProjectRoot;
+      const iosPlistCandidates = [
+        path.join(iosProjectRoot, 'MVPvote', 'GoogleService-Info.plist'),
+        path.join(iosProjectRoot, 'votingapp', 'GoogleService-Info.plist'),
+      ];
       
       // Read environment variables (Expo loads .env files automatically)
       const apiKey = process.env.EXPO_PUBLIC_FIREBASE_APIKEY;
@@ -107,6 +107,11 @@ module.exports = function withVoipEntitlements(config) {
         }
         if (bundleId) {
           content = content.replace(/\$\{FIREBASE_BUNDLE_ID\}/g, bundleId);
+          // Correct a historically wrong Android package written into the iOS plist.
+          content = content.replace(
+            /(<key>BUNDLE_ID<\/key>\s*<string>)[^<]+(<\/string>)/,
+            `$1${bundleId}$2`
+          );
         }
         if (databaseUrl) {
           content = content.replace(/\$\{EXPO_PUBLIC_FIREBASE_DATABASE_URL\}/g, databaseUrl);
@@ -122,10 +127,12 @@ module.exports = function withVoipEntitlements(config) {
       }
 
       // Also update the iOS directory plist file if it exists (generated during prebuild)
-      if (fs.existsSync(iosPlistPath)) {
-        let plistContent = fs.readFileSync(iosPlistPath, 'utf8');
-        plistContent = replacePlaceholders(plistContent);
-        fs.writeFileSync(iosPlistPath, plistContent, 'utf8');
+      for (const iosPlistPath of iosPlistCandidates) {
+        if (fs.existsSync(iosPlistPath)) {
+          let plistContent = fs.readFileSync(iosPlistPath, 'utf8');
+          plistContent = replacePlaceholders(plistContent);
+          fs.writeFileSync(iosPlistPath, plistContent, 'utf8');
+        }
       }
       
       return config;
