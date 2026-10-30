@@ -27,6 +27,6 @@
 	<key>GOOGLE_APP_ID</key>
 	<string>1:579941074520:ios:b8387cbbf0be2935ceec2d</string>
 	<key>DATABASE_URL</key>
-	<string>${EXPO_PUBLIC_FIREBASE_DATABASE_URL}</string>
+	<string>https://mvp-vote-4b489-default-rtdb.europe-west1.firebasedatabase.app</string>
 </dict>
 </plist>

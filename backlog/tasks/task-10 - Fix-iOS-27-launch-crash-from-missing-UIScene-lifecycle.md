@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@cursor'
 created_date: '2026-10-30 22:33'
-updated_date: '2026-10-30 22:37'
+updated_date: '2026-10-30 22:45'
 labels: []
 dependencies: []
 references:
@@ -50,4 +50,6 @@ TestFlight crash report ACQgkm0owHyB7Gj76ZtovTo (2026-10-30 23:21 Europe/Brussel
 
 <!-- SECTION:NOTES:BEGIN -->
 Patched hand-managed ios AppDelegate/Info.plist for UIScene; added with-scene-lifecycle plugin (Firebase-aware); corrected GoogleService BUNDLE_ID; bumped version to 1.7.3.
+
+EAS build 1.7.3 (27) submitted, but IPA still had unsubstituted DATABASE_URL because committed ios/ skips prebuild plugins. Baking production RTDB URL into GoogleService-Info.plist and resubmitting.
 <!-- SECTION:NOTES:END -->
